@@ -1,0 +1,44 @@
+# MCMC Configuration
+# Configuration for Bayesian partial order inference
+
+generation:
+  K: 2                    # Number of latent dimensions
+
+mcmc:
+  num_iterations: 1000    # Number of MCMC iterations
+  random_seed: 42         # Random seed for reproducibility
+  drbeta: 0.1            # Step size for beta updates
+  sigma_beta: 1.0        # Standard deviation for beta prior
+  
+  update_probabilities:
+    rho: 0.2             # Probability of updating rho
+    noise: 0.2           # Probability of updating noise parameter
+    U: 0.4               # Probability of updating latent positions
+    beta: 0.2            # Probability of updating beta
+    K: 0.0               # Probability of updating K (for RJ-MCMC)
+
+rho:
+  dr: 1.1                # Multiplicative step size for rho updates
+
+noise:
+  noise_option: "queue_jump"  # Noise model: "queue_jump" or "mallows_noise"
+  sigma_mallow: 0.1      # Random-walk parameter for Mallows theta
+
+prior:
+  rho_prior: 5.0         # Beta prior parameter for rho
+  noise_beta_prior: 2.0  # Beta prior parameter for noise
+  mallow_ua: 1.0         # Prior parameter for Mallows model
+  K_prior: 2.0           # Poisson prior rate for K (RJ-MCMC)
+
+covariates:
+  p: 2                   # Number of covariates
+
+data:
+  path: "results/synthetic_data.json"  # Path to data file
+  output_dir: "results"   # Output directory for results
+  generate_data: true    # Whether to generate data if not found
+
+visualization:
+  burn_in: 200           # Burn-in period for analysis
+  plot_traces: true      # Whether to plot MCMC traces
+  plot_partial_orders: true  # Whether to plot partial orders 

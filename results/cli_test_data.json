@@ -1,0 +1,80 @@
+{
+  "observed_orders": [
+    ["Item_1", "Item_2", "Item_3", "Item_0"],
+    ["Item_1", "Item_0", "Item_2"],
+    ["Item_1", "Item_3", "Item_2"],
+    ["Item_1", "Item_2", "Item_3", "Item_0"],
+    ["Item_1", "Item_2", "Item_0", "Item_3"],
+    ["Item_1", "Item_2", "Item_3", "Item_0"],
+    ["Item_1", "Item_2", "Item_3", "Item_0"],
+    ["Item_1", "Item_3", "Item_0"],
+    ["Item_1", "Item_0", "Item_2"],
+    ["Item_1", "Item_2", "Item_3", "Item_0"],
+    ["Item_1", "Item_2", "Item_3", "Item_0"],
+    ["Item_2", "Item_3", "Item_0"],
+    ["Item_3", "Item_1", "Item_0"],
+    ["Item_1", "Item_2", "Item_3"],
+    ["Item_1", "Item_2", "Item_3", "Item_0"],
+    ["Item_1", "Item_0", "Item_2"],
+    ["Item_1", "Item_2", "Item_3", "Item_0"],
+    ["Item_2", "Item_3", "Item_0"],
+    ["Item_2", "Item_3", "Item_0"],
+    ["Item_2", "Item_3", "Item_0"]
+  ],
+  "choice_sets": [
+    ["Item_3", "Item_2", "Item_1", "Item_0"],
+    ["Item_2", "Item_1", "Item_0"],
+    ["Item_3", "Item_2", "Item_1"],
+    ["Item_2", "Item_1", "Item_3", "Item_0"],
+    ["Item_3", "Item_0", "Item_1", "Item_2"],
+    ["Item_3", "Item_2", "Item_0", "Item_1"],
+    ["Item_0", "Item_3", "Item_2", "Item_1"],
+    ["Item_0", "Item_1", "Item_3"],
+    ["Item_1", "Item_0", "Item_2"],
+    ["Item_2", "Item_0", "Item_3", "Item_1"],
+    ["Item_1", "Item_2", "Item_3", "Item_0"],
+    ["Item_3", "Item_2", "Item_0"],
+    ["Item_3", "Item_1", "Item_0"],
+    ["Item_1", "Item_3", "Item_2"],
+    ["Item_1", "Item_2", "Item_0", "Item_3"],
+    ["Item_1", "Item_2", "Item_0"],
+    ["Item_1", "Item_0", "Item_2", "Item_3"],
+    ["Item_2", "Item_0", "Item_3"],
+    ["Item_2", "Item_3", "Item_0"],
+    ["Item_2", "Item_0", "Item_3"]
+  ],
+  "items": {
+    "names": ["Item_0", "Item_1", "Item_2", "Item_3"]
+  },
+  "parameters": {
+    "n": 4,
+    "N": 20,
+    "K": 2,
+    "rho_true": 0.0309,
+    "prob_noise_true": 0.1
+  },
+  "true_partial_order": [
+    [0, 0, 0, 0],
+    [0, 0, 1, 0],
+    [0, 0, 0, 1],
+    [1, 0, 0, 0]
+  ],
+  "beta_true": [0.5, -0.3],
+  "X": [
+    [-0.6132, 1.8426, 2.1494, -1.6378],
+    [1.183, -0.4784, 0.6152, 0.3908]
+  ],
+  "U_true": [
+    [-1.5694, -0.8877],
+    [0.5004, 2.0418],
+    [-1.4251, -0.9174],
+    [-0.6672, -0.2543]
+  ],
+  "alpha_true": [-0.6615, 1.0648, 0.8901, -0.9361],
+  "eta_true": [
+    [-1.7062, -1.1772],
+    [2.0624, 4.9376],
+    [-0.0511, 0.3491],
+    [-1.2561, -0.8498]
+  ]
+}
