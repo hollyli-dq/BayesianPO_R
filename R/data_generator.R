@@ -40,7 +40,7 @@ generate_data <- function(config) {
     noise_option <- config$noise$noise_option  # Noise model specification
     noise_beta_prior<-config$prior$rho_prior$noise_beta_prior
  #   mallow_ua <- config$prior$mallow_ua  # Mallows model parameter
-    prob_noise_true= rbeta(1, 1,  noise_beta_prior)
+    prob_noise_true<- rbeta(1, 1,  noise_beta_prior)
     
     items <- 0:(n-1)  # Create list of item indices to represent the items
     
@@ -125,7 +125,7 @@ generate_data <- function(config) {
           
         )
       }
-      observed_orders[[i]] <- order
+      observed_orders[[i]] <-paste0("Item_", order) 
     }
     
     # 12. Prepare output data in the format expected by the inference module

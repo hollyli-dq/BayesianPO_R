@@ -1,5 +1,5 @@
 library(mvtnorm)
-
+source("examples/simple_test.R")
 source("R/utilities.R")
 source("R/mcmc.R")
 source("R/mcmc_rj.R")  # Load reversible jump MCMC

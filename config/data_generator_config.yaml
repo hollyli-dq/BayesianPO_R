@@ -15,7 +15,8 @@ prior:
 
 noise:
   noise_option: "queue_jump"
-noise_beta_prior: 9
+
+
 covariates:
   p: 2
   beta_true: [0.5, -0.3]
