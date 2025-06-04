@@ -651,31 +651,107 @@ generate_synthetic_data <- function(n_items = 6, n_observations = 50, K = 3,
 #' @param items Item names
 #' @return Topologically sorted order
 #' @export
-topological_sort_simple <- function(h, items) {
+topological_sort_random <- function(h, item_names = NULL) {
   n <- nrow(h)
+  if (is.null(item_names)) item_names <- paste0("Item_", seq_len(n))
+  
   in_degree <- colSums(h)
-  result <- character(0)
-  queue <- which(in_degree == 0)
+  order_out <- character(0)
+  queue     <- which(in_degree == 0)  
   
   while (length(queue) > 0) {
-    # Take first item with no incoming edges
-    current <- queue[1]
-    queue <- queue[-1]
-    result <- c(result, items[current])
+    # ---- The change ----
+    idx          <- sample(seq_along(queue), 1)
+    current      <- queue[idx]
+    queue        <- queue[-idx]
     
-    # Remove edges from current node
-    for (j in 1:n) {
+    order_out <- c(order_out, item_names[current])
+    
+    for (j in seq_len(n)) {
       if (h[current, j] == 1) {
         in_degree[j] <- in_degree[j] - 1
-        if (in_degree[j] == 0) {
-          queue <- c(queue, j)
-        }
+        if (in_degree[j] == 0) queue <- c(queue, j)
       }
     }
   }
   
-  return(result)
+  # Check no rings in this 
+  if (length(order_out) != n)
+    stop("There is a ring")
+  
+  order_out
 }
+
+
+# ---------------------------------------------------------------------------
+# Utilities assumed to exist:
+#   transitive_reduction()
+#   nle()                         # total number of linear extensions
+#   num_extensions_with_first(tr, idx_first)
+# ---------------------------------------------------------------------------
+
+#' Queue-jump total-order generator (one choice-set)
+#'
+#' @param subset       Integer vector of *global* item IDs to order
+#' @param items_all    Full global item-ID vector 0:(n-1)
+#' @param h_global     Global partial-order adjacency matrix (0/1)
+#' @param prob_noise   Jump probability p  (0 ≤ p ≤ 1)
+#'
+#' @return             Vector of global IDs – one sampled linear extension
+generate_total_order_queue_jump <- function(subset,
+                                            items_all,
+                                            h_global,
+                                            prob_noise = 0.1) {
+  subset <- sort(unique(subset))
+  if (length(subset) == 0) return(integer(0))
+  
+  ## 1.  Extract the sub-matrix for this subset -----------------------------
+  idx_map <- match(subset, items_all)                # global → row/col index
+  h_sub   <- h_global[idx_map, idx_map, drop = FALSE]
+  
+  ## 2.  Work with LOCAL indices 1..m ---------------------------------------
+  remaining   <- seq_along(subset)                   # local indices
+  order_local <- integer(0)
+  
+  while (length(remaining) > 0) {
+    m <- length(remaining)
+    if (m == 1) {                      # only one left – append and stop
+      order_local <- c(order_local, remaining)
+      break
+    }
+    
+    # (a) current residual partial order
+    h_rem <- h_sub[remaining, remaining, drop = FALSE]
+    tr_rem <- transitive_reduction(h_rem)
+    
+    # (b) total number of linear extensions
+    N_total <- nle(tr_rem)
+    if (N_total == 0)
+      stop("Residual graph is cyclic – cannot draw a linear extension")
+    
+    # (c) probability of each candidate being first, without jump
+    p_no_jump <- numeric(m)
+    for (k in seq_len(m)) {
+      N_first      <- num_extensions_with_first(tr_rem, k)
+      p_no_jump[k] <- (1 - prob_noise) * (N_first / N_total)
+    }
+    
+    # (d) add the jump component (uniform across m candidates)
+    p_total <- p_no_jump + prob_noise / m
+    p_total <- p_total / sum(p_total)                # normalise
+    
+    # (e) sample the next element
+    chosen_pos   <- sample(seq_len(m), size = 1, prob = p_total)
+    chosen_local <- remaining[chosen_pos]
+    
+    order_local <- c(order_local, chosen_local)
+    remaining   <- remaining[-chosen_pos]
+  }
+  
+  ## 3.  Convert local indices back to *global* IDs -------------------------
+  subset[order_local]
+}
+
 
 # ============================================================================
 # COMPATIBILITY FUNCTIONS (for backward compatibility)

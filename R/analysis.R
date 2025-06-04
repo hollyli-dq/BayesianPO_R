@@ -161,44 +161,58 @@ showDAGcon <- function(con_po, threshold = 0.5, label_threshold = 0.9, size = 10
 #' @param vertex_label_color Vertex label color
 #' @param edge_color Edge color
 #' @export
-plot_partial_order <- function(h, item_names = NULL, title = "Partial Order", 
-                              vertex_size = 30, edge_arrow_size = 0.5,
-                              vertex_color = "white", 
-                              vertex_frame_color = "black",
-                              vertex_label_color = "black",
-                              edge_color = "black") {
+plot_partial_order <- function(h,
+                               item_names = NULL,
+                               title = "Partial Order",
+                               # --- visual tuning --------------------------------------------------
+                               vertex_size         = 30,
+                               edge_arrow_size     = 0.5,
+                               vertex_color        = "white",
+                               vertex_frame_color  = "black",
+                               vertex_label_color  = "black",
+                               edge_color          = "black",
+                               # new knobs
+                               label_cex           = 1.4,   # text size multiplier
+                               frame_width         = 2,     # vertex border thickness
+                               label_family        = "serif",# or "sans", "mono" …
+                               layout_fun          = igraph::layout_with_sugiyama)
+{
+  stopifnot(is.matrix(h), nrow(h) == ncol(h))
   n <- nrow(h)
-  if (is.null(item_names)) {
-    item_names <- paste0("Item_", 1:n)
-  }
+  if (is.null(item_names))
+    item_names <- paste0("Item_", seq_len(n))
   
-  # Use transitive reduction for cleaner visualization
-  h_reduced <- transitive_reduction_vsp(h)
+  # 1. transitive reduction for clearer picture --------------------------------
+  h_red <- transitive_reduction_vsp(h)
   
-  # Create graph from adjacency matrix
-  g <- graph_from_adjacency_matrix(h_reduced, mode = "directed")
-  V(g)$name <- item_names
+  # 2. build graph -------------------------------------------------------------
+  g <- igraph::graph_from_adjacency_matrix(h_red, mode = "directed")
+  igraph::V(g)$name <- item_names
   
-  # Use Sugiyama layout for hierarchical structure
-  layout_coords <- layout_with_sugiyama(g)$layout
+  # 3. lay out once (Sugiyama returns a list) ----------------------------------
+  lay <- layout_fun(g)
+  if (is.list(lay)) lay <- lay$layout   # igraph 1.4+ returns list for Sugiyama
   
-  # Plot with VSP styling
-  plot(g, 
-       vertex.label = V(g)$name,
-       vertex.size = vertex_size,
-       vertex.color = vertex_color,
-       vertex.frame.color = vertex_frame_color,
-       vertex.label.color = vertex_label_color,
-       vertex.label.cex = 0.8,
-       vertex.label.family = "serif",
-       edge.arrow.size = edge_arrow_size,
-       edge.color = edge_color,
-       edge.width = 1.5,
-       layout = layout_coords,
-       main = title,
-       main.cex = 1.2,
-       main.family = "serif")
+  # 4. draw --------------------------------------------------------------------
+  plot(g,
+       layout               = lay,
+       main                 = title,
+       main.cex             = 1.2,               # title size
+       main.family          = label_family,
+       vertex.size          = vertex_size,
+       vertex.color         = vertex_color,
+       vertex.frame.color   = vertex_frame_color,
+       vertex.frame.width   = frame_width,
+       vertex.label         = igraph::V(g)$name,
+       vertex.label.cex     = label_cex,
+       vertex.label.family  = label_family,
+       vertex.label.color   = vertex_label_color,
+       edge.arrow.size      = edge_arrow_size,
+       edge.color           = edge_color,
+       edge.width           = 1.5)
+  invisible(g)
 }
+
 
 #' Plot MCMC inferred variables with comprehensive diagnostics
 #' 

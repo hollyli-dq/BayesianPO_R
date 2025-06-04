@@ -44,6 +44,25 @@ mcmc_partial_order_k <- function(
     K_prior = 3.0,
     random_seed = 123
 ) {
+
+    
+    noise_option <- match.arg(noise_option)
+    
+    ## -------------------------------------------------------------------------
+    ## Enforce that only the relevant prior is supplied for the chosen noise
+    ## model.  (Same logic as in mcmc_partial_order.)
+    ## -------------------------------------------------------------------------
+    if (noise_option == "queue_jump") {
+        if (is.null(noise_beta_prior))
+            stop("`noise_beta_prior` must be provided when noise_option = 'queue_jump'")
+        if (!is.null(mallow_ua))
+            message("Ignoring `mallow_ua` because queue-jump noise is selected.")
+    } else {  # mallows_noise
+        if (is.null(mallow_ua))
+            stop("`mallow_ua` must be provided when noise_option = 'mallows_noise'")
+        if (!is.null(noise_beta_prior))
+            message("Ignoring `noise_beta_prior` because Mallows noise is selected.")
+    }
     
     # Set random seed
     set.seed(random_seed)
@@ -129,9 +148,9 @@ mcmc_partial_order_k <- function(
         update_category <- NULL
         
         # Calculate current likelihood (LIKE PYTHON)
-        llk_prime <- calculate_log_likelihood(
-            Z, h_Z, observed_orders_idx, choice_sets, item_to_index,
-            prob_noise, mallow_theta, noise_option
+        llk_current <- calculate_log_likelihood(
+            Z, h_Z, observed_orders_idx, choice_sets,
+            item_to_index, prob_noise, mallow_theta, noise_option
         )
         
         # ---- A) Update rho (MATCH PYTHON EXACTLY) ----
@@ -332,10 +351,6 @@ mcmc_partial_order_k <- function(
                 log_prior_K <- log_K_prior(K, K_prior)
                 log_prior_K_prime <- log_K_prior(K_prime, K_prior)
                 
-                llk_current <- calculate_log_likelihood(
-                    Z, h_Z, observed_orders_idx, choice_sets,
-                    item_to_index, prob_noise, mallow_theta, noise_option
-                )
                 
                 llk_prime <- calculate_log_likelihood(
                     Z_prime, h_Z_prime, observed_orders_idx, choice_sets,

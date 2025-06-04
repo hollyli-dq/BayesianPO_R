@@ -38,7 +38,7 @@ generate_data <- function(config) {
     K <- config$mcmc$K  # Number of dimensions for latent positions
     rho_prior <- config$prior$rho_prior  # Prior parameter for correlation
     noise_option <- config$noise$noise_option  # Noise model specification
-    mallow_ua <- config$prior$mallow_ua  # Mallows model parameter
+ #   mallow_ua <- config$prior$mallow_ua  # Mallows model parameter
     
     items <- 0:(n-1)  # Create list of item indices to represent the items
     
@@ -67,7 +67,7 @@ generate_data <- function(config) {
     print(U)
     
     # 7. Generate latent positions with covariates effects
-    # η = transform_U_to_eta(U, α) (adding covariates effects)
+    # η = transform_U_to_eta(U, α) 
     eta <- transform_U_to_eta(U, alpha)
     cat("\nAdjusted latent positions (eta):\n")
     print(eta)
@@ -97,41 +97,37 @@ generate_data <- function(config) {
     
     # 10. Generate subsets for sampling total orders
     subsets <- list()
-    for (i in 1:N) {
-      # Random choice set (subset of items)
-      choice_size <- sample(3:n, 1)
-      choice_set <- sample(items, choice_size)
-      subsets[[i]] <- choice_set
-    }
+    if(min_sub!=n){
+      for (i in 1:N) {
+        # Random choice set (subset of items)
+        choice_size <- sample(min_sub:n, 1)
+        choice_set <- sample(items, choice_size)
+        subsets[[i]] <- choice_set
+      }
+    } else {subsets = rep(list(items),N)} 
     
     # 11. Generate total orders from subsets
     observed_orders <- list()
     choice_sets <- list()
     
-    for (i in 1:N) {
-      choice_set <- subsets[[i]]
-      choice_sets[[i]] <- paste0("Item_", choice_set)
+    for (i in seq_len(N)) {
+      choice_set       <- subsets[[i]]
+      choice_sets[[i]] <- paste0("Item_", choice_set)      # keep as strings
       
-      # Generate order consistent with partial order, then add noise
-      choice_indices <- choice_set + 1  # Convert to 1-indexed
-      h_sub <- h_true[choice_indices, choice_indices, drop = FALSE]
-      
-      # Simple topological sort for consistent order
-      order <- topological_sort_simple(h_sub, paste0("Item_", choice_set))
-      
-      # Add queue jump noise if specified
       if (noise_option == "queue_jump") {
-        prob_noise_true <- config$generation$prob_noise_true
-        if (runif(1) < prob_noise_true && length(order) > 1) {
-          # Swap two adjacent items
-          swap_pos <- sample(1:(length(order) - 1), 1)
-          temp <- order[swap_pos]
-          order[swap_pos] <- order[swap_pos + 1]
-          order[swap_pos + 1] <- temp
-        }
+        order_global <- generate_total_order_queue_jump(
+          subset      = choice_set,
+          items_all   = items,             # 0:(n-1)
+          h_global    = h_true,
+          prob_noise  = config$generation$prob_noise_true
+        )
+      } else {
+        # fall-back: random topological order without queue-jump
+        h_sub <- h_true[choice_set + 1, choice_set + 1, drop = FALSE]
+        order_global <- topological_sort_random(h_sub, choice_set)
       }
       
-      observed_orders[[i]] <- order
+      observed_orders[[i]] <- paste0("Item_", order_global)
     }
     
     # 12. Prepare output data in the format expected by the inference module

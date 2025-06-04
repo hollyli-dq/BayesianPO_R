@@ -4,6 +4,7 @@
 
 # Required libraries
 library(mvtnorm)
+library(MASS)
 
 # ============================================================================
 # LIKELIHOOD COMPUTATION (PROPER IMPLEMENTATION)
@@ -165,8 +166,24 @@ calculate_log_likelihood <- function(Z, h, observed_orders_idx, choice_sets, ite
 mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, X,
                               dr = 0.1, drbeta = 0.1, sigma_mallow = 0.1, sigma_beta = 1.0,
                               noise_option = "queue_jump", mcmc_pt = c(0.25, 0.25, 0.25, 0.25),
-                              rho_prior = 1/6, noise_beta_prior = 9, mallow_ua = 1,
+                              rho_prior = 1/6, 
+                              noise_beta_prior = NULL,   # <- now nullable
+                              mallow_ua        = NULL,   # <- now nullable
                               random_seed = 123) {
+  noise_option <- match.arg(noise_option)
+  
+  ## -- enforce mutually-exclusive hyper-parameters --------------------------
+  if (noise_option == "queue_jump") {
+    if (is.null(noise_beta_prior))
+      stop("`noise_beta_prior` must be provided when noise_option = 'queue_jump'")
+    if (!is.null(mallow_ua))
+      message("Ignoring `mallow_ua` because queue-jump noise is selected.")
+  } else {                              # mallows_noise
+    if (is.null(mallow_ua))
+      stop("`mallow_ua` must be provided when noise_option = 'mallows_noise'")
+    if (!is.null(noise_beta_prior))
+      message("Ignoring `noise_beta_prior` because Mallows noise is selected.")
+  }
   
   set.seed(random_seed)
   
@@ -183,8 +200,7 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
   
   # Initialize MCMC state (PROPER INITIALIZATION)
   # Start with random initialization like Python, not zeros
-  Sigma_init <- build_sigma_rho(K, 0.5)  # Use moderate correlation for initialization
-  Z <- rmvnorm(n, mean = rep(0, K), sigma = Sigma_init)
+  Z <- matrix(0, nrow = n, ncol = K)
   
   p <- nrow(X)
   beta <- rnorm(p, 0, sigma_beta)
@@ -216,40 +232,35 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
   noise_pct <- mcmc_pt[2]
   U_pct <- mcmc_pt[3]
   beta_pct <- mcmc_pt[4]
-  
+
   cat("Starting MCMC with", num_iterations, "iterations...\n")
-  cat("Initial h_Z has", sum(h_Z), "edges\n")
-  
-  # Main MCMC loop
+  cat("Initial h_Z has", sum(h_Z), "edges\n") # Main MCMC loop
   for (iteration in 1:num_iterations) {
+    llk_current <- calculate_log_likelihood(Z, h_Z, observed_orders_idx, choice_sets,
+                                            item_to_index, prob_noise, mallow_theta, noise_option)
     r <- runif(1)
     
     # Update rho
     if (r < rho_pct) {
-      delta <- runif(1, min(dr, 1/dr), max(dr, 1/dr))  # Correct range
+      delta <- runif(1, dr, 1/dr)  # Correct range
       rho_prime <- 1.0 - (1.0 - rho) * delta
       
       if (!is.na(rho_prime) && rho_prime > 0 && rho_prime < 1) {
         log_prior_current <- log_rho_prior(rho, rho_prior) + log_U_prior(Z, rho, K)
         log_prior_proposed <- log_rho_prior(rho_prime, rho_prior) + log_U_prior(Z, rho_prime, K)
-        
-        llk_current <- calculate_log_likelihood(Z, h_Z, observed_orders_idx, choice_sets,
-                                              item_to_index, prob_noise, mallow_theta, noise_option)
         log_likelihood_proposed <- llk_current  # Z unchanged
         
-        log_acceptance_ratio <- (log_prior_proposed + log_likelihood_proposed) - 
-                               (log_prior_current + llk_current) - log(delta)
+        log_acceptance_ratio <- (log_prior_proposed) - (log_prior_current)- log(delta)
         
         acceptance_probability <- min(1.0, exp(log_acceptance_ratio))
         if (runif(1) < acceptance_probability) {
           rho <- rho_prime
           num_acceptances <- num_acceptances + 1
+          llk_current <- log_likelihood_proposed
         }
       }
       
-      # Store log-likelihood every iteration
-      llk_current <- calculate_log_likelihood(Z, h_Z, observed_orders_idx, choice_sets,
-                                            item_to_index, prob_noise, mallow_theta, noise_option)
+
       log_likelihood_currents <- c(log_likelihood_currents, llk_current)
     }
     
@@ -262,8 +273,7 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
         log_prior_current <- log_theta_prior(mallow_theta, mallow_ua)
         log_prior_proposed <- log_theta_prior(mallow_theta_prime, mallow_ua)
         
-        llk_current <- calculate_log_likelihood(Z, h_Z, observed_orders_idx, choice_sets,
-                                              item_to_index, prob_noise, mallow_theta, noise_option)
+
         llk_prime <- calculate_log_likelihood(Z, h_Z, observed_orders_idx, choice_sets,
                                             item_to_index, prob_noise, mallow_theta_prime, noise_option)
         
@@ -274,6 +284,7 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
         if (runif(1) < acceptance_probability) {
           mallow_theta <- mallow_theta_prime
           num_acceptances <- num_acceptances + 1
+          llk_current <- llk_prime
         }
       } else if (noise_option == "queue_jump") {
         prob_noise_prime <- sample_noise_prior(noise_beta_prior)
@@ -281,8 +292,7 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
         log_prior_current <- log_noise_prior(prob_noise, noise_beta_prior)
         log_prior_proposed <- log_noise_prior(prob_noise_prime, noise_beta_prior)
         
-        llk_current <- calculate_log_likelihood(Z, h_Z, observed_orders_idx, choice_sets,
-                                              item_to_index, prob_noise, mallow_theta, noise_option)
+
         llk_prime <- calculate_log_likelihood(Z, h_Z, observed_orders_idx, choice_sets,
                                             item_to_index, prob_noise_prime, mallow_theta, noise_option)
         
@@ -291,12 +301,12 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
         if (runif(1) < acceptance_probability) {
           prob_noise <- prob_noise_prime
           num_acceptances <- num_acceptances + 1
+          llk_current <- llk_prime
         }
       }
       
       # Store log-likelihood every iteration
-      llk_current <- calculate_log_likelihood(Z, h_Z, observed_orders_idx, choice_sets,
-                                            item_to_index, prob_noise, mallow_theta, noise_option)
+
       log_likelihood_currents <- c(log_likelihood_currents, llk_current)
     }
     
@@ -304,10 +314,10 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
     else if (r <= (rho_pct + noise_pct + U_pct)) {
       # Update single element like Python
       i <- sample(1:n, 1)
-      j <- sample(1:K, 1)
       
       Z_prime <- Z
-      Z_prime[i, j] <- sample_conditional_z(Z, i, j, rho)
+      Sigma_row <- build_sigma_rho(K, rho)
+      Z_prime[i,] <- mvrnorm(1, Z[i,], Sigma_row)
       
       eta_prime <- transform_U_to_eta(Z_prime, alpha)
       h_Z_prime <- generate_partial_order(eta_prime)
@@ -315,8 +325,7 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
       log_prior_current <- log_U_prior(Z, rho, K)
       log_prior_proposed <- log_U_prior(Z_prime, rho, K)
       
-      llk_current <- calculate_log_likelihood(Z, h_Z, observed_orders_idx, choice_sets,
-                                            item_to_index, prob_noise, mallow_theta, noise_option)
+
       llk_prime <- calculate_log_likelihood(Z_prime, h_Z_prime, observed_orders_idx, choice_sets,
                                           item_to_index, prob_noise, mallow_theta, noise_option)
       
@@ -325,6 +334,7 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
       if (runif(1) < acceptance_probability) {
         Z <- Z_prime
         h_Z <- h_Z_prime
+        llk_current <- llk_prime
         num_acceptances <- num_acceptances + 1
       }
       
@@ -334,7 +344,7 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
     
     # Update beta
     else {
-      j <- sample(1:p, 1)  # Random component like Python
+      j <- ((iteration-1) %% p) + 1  # Random component like Python
       epsilon <- rnorm(1, 0, drbeta)
       beta_prime <- beta
       beta_prime[j] <- beta_prime[j] + epsilon
@@ -344,9 +354,7 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
       
       lp_current <- log_beta_prior(beta, sigma_beta)
       lp_proposed <- log_beta_prior(beta_prime, sigma_beta)
-      
-      llk_current <- calculate_log_likelihood(Z, h_Z, observed_orders_idx, choice_sets,
-                                            item_to_index, prob_noise, mallow_theta, noise_option)
+
       llk_prime <- calculate_log_likelihood(Z, h_Z_prime, observed_orders_idx, choice_sets,
                                           item_to_index, prob_noise, mallow_theta, noise_option)
       
@@ -354,6 +362,7 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
       acceptance_probability <- min(1.0, exp(log_acceptance_ratio))
       if (runif(1) < acceptance_probability) {
         beta <- beta_prime
+        llk_current <- llk_prime
         alpha <- alpha_prime
         h_Z <- h_Z_prime
         num_acceptances <- num_acceptances + 1
