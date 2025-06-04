@@ -33,12 +33,14 @@ generate_data <- function(config) {
     # 1. Set up parameters for partial order generation
     n <- config$generation$n  # Number of nodes/items in the partial order
     N <- config$generation$N  # Number of total orders to sample from the partial order
-    
+    min_sub <- config$prior$min_sub # min size of suborder    
     # 2. Load configuration parameters
     K <- config$mcmc$K  # Number of dimensions for latent positions
     rho_prior <- config$prior$rho_prior  # Prior parameter for correlation
     noise_option <- config$noise$noise_option  # Noise model specification
+    noise_beta_prior<-config$prior$rho_prior$noise_beta_prior
  #   mallow_ua <- config$prior$mallow_ua  # Mallows model parameter
+    prob_noise_true= rbeta(1, 1,  noise_beta_prior)
     
     items <- 0:(n-1)  # Create list of item indices to represent the items
     
@@ -123,7 +125,7 @@ generate_data <- function(config) {
           
         )
       }
-      observed_orders[[i]] <- paste0("Item_", order_global)
+      observed_orders[[i]] <- order
     }
     
     # 12. Prepare output data in the format expected by the inference module
@@ -136,7 +138,7 @@ generate_data <- function(config) {
         N = N,
         K = K,
         rho_true = rho_true,
-        prob_noise_true = ifelse(is.null(config$generation$prob_noise_true), 0.1, config$generation$prob_noise_true)
+        prob_noise_true =  prob_noise_true
       ),
       true_partial_order = h_true,  # True partial order matrix
       beta_true = beta_true,  # True covariate effects

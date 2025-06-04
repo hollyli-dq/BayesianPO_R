@@ -1,12 +1,16 @@
 library(mvtnorm)
 
 source("R/utilities.R")
+source("R/mcmc.R")
+source("R/mcmc_rj.R")  # Load reversible jump MCMC
+source("R/analysis.R")
+
 
 set.seed(42)
 K      <- 3
 rho    <- 0.4
 n      <- 5
-
+min_sub <-3 
 Sigma   <- build_sigma_rho(K, rho)
 Z       <- rmvnorm(n, sigma = Sigma)
 alpha   <- rnorm(n)
@@ -91,7 +95,7 @@ n                <- 5          # number of items
 N                <- 10         # number of total orders
 K                <- 3           # latent dimensions
 p                <- 2           # number of covariates
-
+min_sub<- 3 
 rho_prior        <- 0.16667     # prior mean for rho  (Beta(1, (1/ρ₀)–1))
 prob_noise_true  <- 0.10        # queue-jump noise used to *simulate* data
 beta_true        <- c(0.5, -0.3)# true regression coefficients
@@ -108,6 +112,7 @@ X <- matrix(rnorm(p * n), nrow = p, ncol = n)
 synthetic_data <- generate_synthetic_data(
   n_items         = n,
   n_observations  = N,
+  min_sub.        = min_sub,
   K               = K,
   rho_true        = rho_true,
   prob_noise_true = prob_noise_true,
@@ -117,3 +122,17 @@ synthetic_data <- generate_synthetic_data(
 )
 
 
+# Extract components
+items <- synthetic_data$items
+observed_orders <- synthetic_data$observed_orders
+choice_sets <- synthetic_data$choice_sets
+h_true <- synthetic_data$h_true
+
+plot_partial_order(
+  h_true, items,
+  title         = "True Partial Order",
+  vertex_size   = 38,
+  edge_arrow_size = 0.6,
+  label_cex     = 1.3,  # even bigger text
+  frame_width   = 2.3   # bolder outlines
+)

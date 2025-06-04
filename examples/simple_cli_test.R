@@ -21,7 +21,8 @@ data_config <- list(
   mcmc = list(K = 2),
   prior = list(rho_prior = 5.0, mallow_ua = 1.0, noise_beta_prior = 2.0),
   noise = list(noise_option = "queue_jump"),
-  covariates = list(p = 2, beta_true = c(0.5, -0.3))
+  covariates = list(p = 2, beta_true = c(0.5, -0.3)),
+  min_sub=3 
 )
 
 # Generate data
@@ -48,7 +49,7 @@ mcmc_config <- list(
   ),
   rho = list(dr = 1.1),
   noise = list(noise_option = "queue_jump", sigma_mallow = 0.1),
-  prior = list(rho_prior = 5.0, noise_beta_prior = 2.0, mallow_ua = 1.0),
+  prior = list(rho_prior = 5.0, noise_beta_prior = 2.0),
   covariates = list(p = 2),
   visualization = list(burn_in = 100)
 )

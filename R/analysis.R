@@ -244,7 +244,6 @@ plot_mcmc_results <- function(mcmc_results,
   trace_mapping <- list(
     rho = "rho_trace",
     prob_noise = "prob_noise_trace", 
-    mallow_theta = "mallow_theta_trace",
     K = "K_trace"
   )
   
@@ -255,7 +254,6 @@ plot_mcmc_results <- function(mcmc_results,
                truncated = TRUE),
     prob_noise = list(color = 'orange', prior = 'beta', 
                      prior_params = list(shape1 = 1.0, shape2 = config$prior$noise_beta_prior %||% 1.0)),
-    mallow_theta = list(color = 'purple', prior = NULL),
     K = list(color = 'darkcyan', prior = 'poisson', 
              prior_params = list(lambda = config$prior$K_prior %||% 1.0))
   )

@@ -16,7 +16,8 @@ config <- list(
   mcmc = list(K = 2),
   prior = list(rho_prior = 5.0, mallow_ua = 1.0, noise_beta_prior = 2.0),
   noise = list(noise_option = "queue_jump"),
-  covariates = list(p = 2, beta_true = c(0.5, -0.3))
+  covariates = list(p = 2, beta_true = c(0.5, -0.3)),
+  min_sub = 3
 )
 
 # Generate data

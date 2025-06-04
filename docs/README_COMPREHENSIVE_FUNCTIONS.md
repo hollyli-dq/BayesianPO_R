@@ -1,14 +1,22 @@
+---
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
 # Comprehensive Bayesian Partial Order Inference Functions
 
-This document describes the large, self-contained functions that replicate the Python functionality for Bayesian partial order inference.
+This document describes the large, self-contained functions that
+replicate the Python functionality for Bayesian partial order inference.
 
 ## Overview
 
-The R implementation now includes three main comprehensive functions that mirror your Python codebase:
+The R implementation now includes three main comprehensive functions
+that mirror your Python codebase:
 
-1. **Data Generation Function** (`R/data_generator.R`)
-2. **Inference Function** (`R/po_inference.R`) 
-3. **Command-Line Interface** (`R/cli.R`)
+1.  **Data Generation Function** (`R/data_generator.R`)
+2.  **Inference Function** (`R/po_inference.R`)
+3.  **Command-Line Interface** (`R/cli.R`)
 
 ## Prerequisites and Installation
 
@@ -17,7 +25,8 @@ The R implementation now includes three main comprehensive functions that mirror
 The comprehensive functions require the following R packages:
 
 #### Core Dependencies
-```r
+
+``` r
 # Essential packages for functionality
 install.packages(c(
   "yaml",        # Configuration file parsing
@@ -29,7 +38,8 @@ install.packages(c(
 ```
 
 #### Additional Packages (if not already installed)
-```r
+
+``` r
 # Standard packages that may be needed
 install.packages(c(
   "tools",       # File path utilities
@@ -44,7 +54,7 @@ install.packages(c(
 
 You can install all required packages at once:
 
-```r
+``` r
 # Install all required packages
 required_packages <- c("yaml", "jsonlite", "mvtnorm", "optparse", "igraph")
 
@@ -72,18 +82,18 @@ cat("All packages loaded successfully!\n")
 
 The functions have been tested with the following package versions:
 
-- `yaml`: 2.3.10
-- `jsonlite`: 2.0.0  
-- `mvtnorm`: 1.2-6
-- `optparse`: 1.7.5
-- `igraph`: 2.1.1
+-   `yaml`: 2.3.10
+-   `jsonlite`: 2.0.0\
+-   `mvtnorm`: 1.2-6
+-   `optparse`: 1.7.5
+-   `igraph`: 2.1.1
 
 ### System Requirements
 
-- **R Version**: 4.0.0 or higher
-- **Operating System**: Cross-platform (Windows, macOS, Linux)
-- **Memory**: Minimum 4GB RAM (8GB+ recommended for larger datasets)
-- **Storage**: ~100MB for package installation
+-   **R Version**: 4.0.0 or higher
+-   **Operating System**: Cross-platform (Windows, macOS, Linux)
+-   **Memory**: Minimum 4GB RAM (8GB+ recommended for larger datasets)
+-   **Storage**: \~100MB for package installation
 
 ## Function Descriptions
 
@@ -91,17 +101,17 @@ The functions have been tested with the following package versions:
 
 **Location**: `R/data_generator.R`
 
-**Purpose**: Generates synthetic data for partial order inference, equivalent to your Python `data_generator.py`.
+**Purpose**: Generates synthetic data for partial order inference,
+equivalent to your Python `data_generator.py`.
 
-**Key Features**:
-- Generates latent positions with correlation structure
-- Creates partial orders with transitive reduction
-- Adds noise (queue jump or Mallows)
-- Handles covariates and regression effects
-- Saves data in JSON format
+**Key Features**: - Generates latent positions with correlation
+structure - Creates partial orders with transitive reduction - Adds
+noise (queue jump or Mallows) - Handles covariates and regression
+effects - Saves data in JSON format
 
 **Usage**:
-```r
+
+``` r
 # Load configuration
 config <- load_config("config/data_generator_config.yaml")
 
@@ -116,17 +126,17 @@ data_path <- generate_data_main("config/data_generator_config.yaml", "output")
 
 **Location**: `R/po_inference.R`
 
-**Purpose**: Runs MCMC inference on observed data, equivalent to your Python `po_inference.py`.
+**Purpose**: Runs MCMC inference on observed data, equivalent to your
+Python `po_inference.py`.
 
-**Key Features**:
-- Supports both fixed dimension and reversible jump MCMC
-- Proper posterior averaging with thresholding
-- Comprehensive result saving and plotting
-- Handles both queue jump and Mallows noise models
-- Automatic burn-in handling
+**Key Features**: - Supports both fixed dimension and reversible jump
+MCMC - Proper posterior averaging with thresholding - Comprehensive
+result saving and plotting - Handles both queue jump and Mallows noise
+models - Automatic burn-in handling
 
 **Usage**:
-```r
+
+``` r
 # Load data and config
 data <- load_data("output/synthetic_data.json")
 config <- load_config("config/mcmc_config.yaml")
@@ -152,18 +162,16 @@ results <- inference_main("output/synthetic_data.json",
 
 **Location**: `R/cli.R`
 
-**Purpose**: Provides a command-line interface equivalent to your Python CLI.
+**Purpose**: Provides a command-line interface equivalent to your Python
+CLI.
 
-**Key Features**:
-- Generate data only
-- Run inference only
-- Full pipeline (generate + inference)
-- Support for both MCMC types
-- Configurable parameters via command line
-- Verbose output option
+**Key Features**: - Generate data only - Run inference only - Full
+pipeline (generate + inference) - Support for both MCMC types -
+Configurable parameters via command line - Verbose output option
 
 **Usage**:
-```bash
+
+``` bash
 # Generate data only
 Rscript R/cli.R --generate-data
 
@@ -183,19 +191,22 @@ Rscript R/cli.R --output-dir results --random-seed 123
 ## Quick Start Guide
 
 ### 1. Install Packages
-```r
+
+``` r
 # Run the installation script above
 source("install_packages.R")  # If you save the installation script
 ```
 
 ### 2. Test Installation
-```r
+
+``` r
 # Quick test
 source("simple_test.R")
 ```
 
 ### 3. Run Full Pipeline
-```bash
+
+``` bash
 # Command line
 Rscript R/cli.R --help
 Rscript R/cli.R --iterations 500 --verbose
@@ -205,7 +216,7 @@ Rscript R/cli.R --iterations 500 --verbose
 
 ### Data Generator Config (`config/data_generator_config.yaml`)
 
-```yaml
+``` yaml
 generation:
   n: 5                    # Number of items/nodes
   N: 50                   # Number of total orders to generate
@@ -229,7 +240,7 @@ covariates:
 
 ### MCMC Config (`config/mcmc_config.yaml`)
 
-```yaml
+``` yaml
 mcmc:
   num_iterations: 1000    # Number of MCMC iterations
   random_seed: 42         # Random seed
@@ -253,12 +264,14 @@ visualization:
 ## Testing
 
 ### Comprehensive Test Suite
-```r
+
+``` r
 source("test_comprehensive_functions.R")
 ```
 
 ### Individual Tests
-```r
+
+``` r
 # Test data generation only
 source("simple_test.R")
 
@@ -269,11 +282,8 @@ source("simple_inference_test.R")
 source("simple_cli_test.R")
 ```
 
-This will:
-1. Generate synthetic data
-2. Run both fixed dimension and reversible jump MCMC
-3. Save all results
-4. Generate plots and analysis
+This will: 1. Generate synthetic data 2. Run both fixed dimension and
+reversible jump MCMC 3. Save all results 4. Generate plots and analysis
 5. Compare the two approaches
 
 ## Troubleshooting
@@ -281,19 +291,22 @@ This will:
 ### Common Package Issues
 
 **Problem**: Package installation fails
-```r
+
+``` r
 # Solution: Try different repository
 install.packages("package_name", repos = "https://cloud.r-project.org/")
 ```
 
 **Problem**: YAML parsing errors
-```r
+
+``` r
 # Solution: Check file encoding and line endings
 # Ensure YAML files have proper newlines at the end
 ```
 
 **Problem**: Memory issues with large datasets
-```r
+
+``` r
 # Solution: Increase memory limit (Windows)
 memory.limit(size = 8000)  # 8GB
 
@@ -304,7 +317,7 @@ memory.limit(size = 8000)  # 8GB
 
 If you encounter package loading issues:
 
-```r
+``` r
 # Check package installation
 installed.packages()[c("yaml", "jsonlite", "mvtnorm", "optparse", "igraph"), ]
 
@@ -318,17 +331,24 @@ R.version.string
 
 ## Key Improvements Over Modular Version
 
-1. **Self-Contained Functions**: Each function includes all necessary dependencies
-2. **Python Compatibility**: Functions mirror Python structure and behavior
-3. **Comprehensive Error Handling**: Robust error checking and reporting
-4. **Flexible Configuration**: YAML-based configuration with command-line overrides
-5. **Complete Pipeline**: End-to-end functionality from data generation to analysis
-6. **Both MCMC Types**: Support for fixed dimension and reversible jump MCMC
-7. **Proper Posterior Processing**: Correct averaging and thresholding as in Python
+1.  **Self-Contained Functions**: Each function includes all necessary
+    dependencies
+2.  **Python Compatibility**: Functions mirror Python structure and
+    behavior
+3.  **Comprehensive Error Handling**: Robust error checking and
+    reporting
+4.  **Flexible Configuration**: YAML-based configuration with
+    command-line overrides
+5.  **Complete Pipeline**: End-to-end functionality from data generation
+    to analysis
+6.  **Both MCMC Types**: Support for fixed dimension and reversible jump
+    MCMC
+7.  **Proper Posterior Processing**: Correct averaging and thresholding
+    as in Python
 
 ## Command-Line Examples
 
-```bash
+``` bash
 # Basic usage - generate data and run inference
 Rscript R/cli.R
 
@@ -350,17 +370,18 @@ Rscript R/cli.R --help
 
 ## Output Files
 
-The functions generate:
-- `synthetic_data.json`: Generated synthetic data
-- `*_results.json`: MCMC results in JSON format
-- `*_partial_order.rds`: Inferred partial order matrix
-- Various plots and visualizations
+The functions generate: - `synthetic_data.json`: Generated synthetic
+data - `*_results.json`: MCMC results in JSON format -
+`*_partial_order.rds`: Inferred partial order matrix - Various plots and
+visualizations
 
 ## Performance Notes
 
-- **Data Generation**: < 1 second for typical datasets
-- **Fixed MCMC (1000 iter)**: ~20 seconds, 30-40% acceptance rate
-- **RJ-MCMC (1000 iter)**: ~30 seconds, 50-60% acceptance rate
-- **Memory Usage**: ~50-100MB for typical datasets (n=5, N=50)
+-   **Data Generation**: \< 1 second for typical datasets
+-   **Fixed MCMC (1000 iter)**: \~20 seconds, 30-40% acceptance rate
+-   **RJ-MCMC (1000 iter)**: \~30 seconds, 50-60% acceptance rate
+-   **Memory Usage**: \~50-100MB for typical datasets (n=5, N=50)
 
-These comprehensive functions provide a complete, Python-equivalent implementation of your Bayesian partial order inference pipeline in R with robust package management and installation support. 
+These comprehensive functions provide a complete, Python-equivalent
+implementation of your Bayesian partial order inference pipeline in R
+with robust package management and installation support.

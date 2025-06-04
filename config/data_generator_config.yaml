@@ -7,13 +7,15 @@ mcmc:
   K: 2
 
 prior:
+  min_sub: 3.0
   rho_prior: 5.0
   mallow_ua: 1.0
-  noise_beta_prior: 2.0
+  noise_beta_prior: 9.0
+
 
 noise:
   noise_option: "queue_jump"
-
+noise_beta_prior: 9
 covariates:
   p: 2
   beta_true: [0.5, -0.3]
@@ -21,3 +23,5 @@ covariates:
 output:
   dir: "results"
   filename: "synthetic_data.json" 
+  
+  

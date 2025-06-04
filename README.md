@@ -201,13 +201,6 @@ update_probabilities:
 
 ## 🔍 Troubleshooting
 
-### Common Issues
-
--   **Package installation fails**: Try `install.packages("package_name", repos="https://cloud.r-project.org/")`
--   **YAML parsing errors**: Ensure config files end with newline
--   **Memory issues**: Reduce dataset size in configs or increase memory limit
--   **Path issues**: Ensure you're in the project root directory
-
 ### Getting Help
 
 -   Check [`docs/QUICK_SETUP.md`](docs/QUICK_SETUP.md) for step-by-step guide

@@ -566,7 +566,7 @@ sample_theta_prior <- function(ua) {
 #' @param random_seed Random seed
 #' @return List containing synthetic data
 #' @export
-generate_synthetic_data <- function(n_items = 6, n_observations = 50, K = 3, 
+generate_synthetic_data <- function(n_items = 6, n_observations = 50,     min_sub =2 ,K = 3, 
                                    rho_true = 0.8, prob_noise_true = 0.1, 
                                    beta_true = NULL, X = NULL,
                                    random_seed = 123) {
@@ -596,16 +596,25 @@ generate_synthetic_data <- function(n_items = 6, n_observations = 50, K = 3,
   
   # Generate item names
   items <- paste0("Item_", 1:n_items)
+
+  subsets <- list()
+  if(min_sub!=n){
+    for (i in 1:N) {
+      # Random choice set (subset of items)
+      choice_size <- sample(min_sub:n, 1)
+      choice_set <- sample(items, choice_size)
+      subsets[[i]] <- choice_set
+    }
+  } else {subsets = rep(list(items),N)} 
   
   # Generate observations with noise
   observed_orders <- list()
   choice_sets <- list()
   
   for (i in 1:n_observations) {
-    # Random choice set (subset of items)
-    choice_size <- sample(3:n_items, 1)
-    choice_set <- sample(items, choice_size)
-    choice_sets[[i]] <- choice_set
+    choice_set <- subsets[[i]]
+    choice_sets[[i]] <-choice_set
+
     
     if (noise_option == "queue_jump") {
       order <- generate_total_order_queue_jump(
@@ -642,45 +651,6 @@ generate_synthetic_data <- function(n_items = 6, n_observations = 50, K = 3,
     )
   ))
 }
-
-#' Simple topological sort
-#' 
-#' @param h Adjacency matrix
-#' @param items Item names
-#' @return Topologically sorted order
-#' @export
-topological_sort_random <- function(h, item_names = NULL) {
-  n <- nrow(h)
-  if (is.null(item_names)) item_names <- paste0("Item_", seq_len(n))
-  
-  in_degree <- colSums(h)
-  order_out <- character(0)
-  queue     <- which(in_degree == 0)  
-  
-  while (length(queue) > 0) {
-    # ---- The change ----
-    idx          <- sample(seq_along(queue), 1)
-    current      <- queue[idx]
-    queue        <- queue[-idx]
-    
-    order_out <- c(order_out, item_names[current])
-    
-    for (j in seq_len(n)) {
-      if (h[current, j] == 1) {
-        in_degree[j] <- in_degree[j] - 1
-        if (in_degree[j] == 0) queue <- c(queue, j)
-      }
-    }
-  }
-  
-  # Check no rings in this 
-  if (length(order_out) != n)
-    stop("There is a ring")
-  
-  order_out
-}
-
-
 # ---------------------------------------------------------------------------
 # Utilities assumed to exist:
 #   transitive_reduction()
