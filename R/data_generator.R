@@ -115,18 +115,14 @@ generate_data <- function(config) {
       choice_sets[[i]] <- paste0("Item_", choice_set)      # keep as strings
       
       if (noise_option == "queue_jump") {
-        order_global <- generate_total_order_queue_jump(
-          subset      = choice_set,
-          items_all   = items,             # 0:(n-1)
-          h_global    = h_true,
-          prob_noise  = config$generation$prob_noise_true
+        order <- generate_total_order_queue_jump(
+          subset     = choice_set,
+          items_all  = items,
+          h_global   = h_true,
+          prob_noise = prob_noise_true
+          
         )
-      } else {
-        # fall-back: random topological order without queue-jump
-        h_sub <- h_true[choice_set + 1, choice_set + 1, drop = FALSE]
-        order_global <- topological_sort_random(h_sub, choice_set)
       }
-      
       observed_orders[[i]] <- paste0("Item_", order_global)
     }
     

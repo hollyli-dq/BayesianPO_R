@@ -82,3 +82,38 @@ ll_R <- log_likelihood_queue_jump(
   h_true, obs_idx, choice_sets, item_to_index,
   prob_noise = 0.15)
 cat("R   log-likelihood:", ll_R, "\n")
+
+
+
+
+
+n                <- 5          # number of items
+N                <- 10         # number of total orders
+K                <- 3           # latent dimensions
+p                <- 2           # number of covariates
+
+rho_prior        <- 0.16667     # prior mean for rho  (Beta(1, (1/ρ₀)–1))
+prob_noise_true  <- 0.10        # queue-jump noise used to *simulate* data
+beta_true        <- c(0.5, -0.3)# true regression coefficients
+rng_seed         <- 42          # reproducibility
+noise_option<-  "queue_jump"
+set.seed(rng_seed)
+
+# draw rho_true from Beta(1, b) with mean = rho_prior
+rho_true <- rbeta(1, 1, (1 / rho_prior) - 1)
+
+# design matrix  X  of size p × n  (independent standard-normal entries)
+X <- matrix(rnorm(p * n), nrow = p, ncol = n)
+
+synthetic_data <- generate_synthetic_data(
+  n_items         = n,
+  n_observations  = N,
+  K               = K,
+  rho_true        = rho_true,
+  prob_noise_true = prob_noise_true,
+  beta_true       = beta_true,
+  X               = t(X),          # generator expects n × p
+  random_seed     = rng_seed
+)
+
+

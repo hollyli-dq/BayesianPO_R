@@ -607,25 +607,23 @@ generate_synthetic_data <- function(n_items = 6, n_observations = 50, K = 3,
     choice_set <- sample(items, choice_size)
     choice_sets[[i]] <- choice_set
     
-    # Generate order consistent with partial order, then add noise
-    choice_indices <- which(items %in% choice_set)
-    h_sub <- h_true[choice_indices, choice_indices]
-    
-    # Simple topological sort for consistent order
-    order <- topological_sort_simple(h_sub, choice_set)
-    
-    # Add queue jump noise
-    if (runif(1) < prob_noise_true && length(order) > 1) {
-      # Swap two adjacent items
-      swap_pos <- sample(1:(length(order) - 1), 1)
-      temp <- order[swap_pos]
-      order[swap_pos] <- order[swap_pos + 1]
-      order[swap_pos + 1] <- temp
+    if (noise_option == "queue_jump") {
+      order <- generate_total_order_queue_jump(
+          subset     = choice_set,
+          items_all  = items,
+          h_global   = h_true,
+          prob_noise = prob_noise_true
+      
+      )
     }
     
-    observed_orders[[i]] <- order
-  }
+    observed_orders[[i]] <- order   # one assignment is enough
+  }                                # closes the *for* loop
   
+
+
+  
+    
   return(list(
     observed_orders = observed_orders,
     choice_sets = choice_sets,
