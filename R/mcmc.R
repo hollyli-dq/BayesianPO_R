@@ -190,8 +190,8 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
   # Setup: Map items to indices
   items <- sort(unique(unlist(choice_sets)))
   n <- length(items)
-  item_to_index <- setNames(1:n, items)
-  index_to_item <- setNames(items, 1:n)
+  item_to_index <- setNames(0:(length(items)-1), items)
+  index_to_item <- setNames(items, 0:(length(items)-1))
   
   # Convert observed orders to index form
   observed_orders_idx <- lapply(observed_orders, function(order) {

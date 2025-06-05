@@ -7,7 +7,6 @@ mcmc:
   K: 2
 
 prior:
-  min_sub: 3.0
   rho_prior: 5.0
   mallow_ua: 1.0
   noise_beta_prior: 9.0
@@ -25,4 +24,4 @@ output:
   dir: "results"
   filename: "synthetic_data.json" 
   
-  
+min_sub: 3.0

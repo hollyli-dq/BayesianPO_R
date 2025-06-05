@@ -73,8 +73,8 @@ mcmc_partial_order_k <- function(
     
     items <- sort(unique(unlist(choice_sets)))
     n <- length(items)
-    item_to_index <- setNames(seq_along(items), items)
-    index_to_item <- setNames(items, seq_along(items))
+    item_to_index <- setNames(0:(length(items)-1), items)
+    index_to_item <- setNames(items, 0:(length(items)-1))
     
     # Convert observed orders to index form
     observed_orders_idx <- lapply(observed_orders, function(order) {
@@ -155,37 +155,28 @@ mcmc_partial_order_k <- function(
         
         # ---- A) Update rho (MATCH PYTHON EXACTLY) ----
         if (r < rho_pct) {
-            update_category <- "rho"
-            delta <- runif(1, dr, 1/dr)  # MATCH PYTHON: uniform(dr, 1/dr)
+            delta <- runif(1, dr, 1/dr)  # Correct range
             rho_prime <- 1.0 - (1.0 - rho) * delta
             
-            if (!(rho_prime > 0 && rho_prime < 1)) {
-                rho_prime <- rho
+            if (!is.na(rho_prime) && rho_prime > 0 && rho_prime < 1) {
+                log_prior_current <- log_rho_prior(rho, rho_prior) + log_U_prior(Z, rho, K)
+                log_prior_proposed <- log_rho_prior(rho_prime, rho_prior) + log_U_prior(Z, rho_prime, K)
+                log_likelihood_proposed <- llk_current  # Z unchanged
+                
+                log_acceptance_ratio <- (log_prior_proposed) - (log_prior_current)- log(delta)
+                
+                acceptance_probability <- min(1.0, exp(log_acceptance_ratio))
+                if (runif(1) < acceptance_probability) {
+                    rho <- rho_prime
+                    num_acceptances <- num_acceptances + 1
+                    llk_current <- log_likelihood_proposed
+                }
             }
             
-            # Calculate priors (MATCH PYTHON)
-            log_prior_current <- log_rho_prior(rho, rho_prior) + log_U_prior(Z, rho, K)
-            log_prior_proposed <- log_rho_prior(rho_prime, rho_prior) + log_U_prior(Z, rho_prime, K)
             
-            # Since Z unchanged, use same likelihood
-            llk_prime <- llk_current
-            
-            log_acceptance_ratio <- (log_prior_proposed) - (log_prior_current) - log(delta)
-            
-            acceptance_probability <- min(1.0, exp(log_acceptance_ratio))
-            if (runif(1) < acceptance_probability) {
-                rho <- rho_prime
-                num_acceptances <- num_acceptances + 1
-                acceptance_decisions <- c(acceptance_decisions, 1)
-                accepted_this_iter <- TRUE
-                llk_current <- llk_prime
-            } else {
-                acceptance_decisions <- c(acceptance_decisions, 0)
-            }
-            proposed_rho_vals <- c(proposed_rho_vals, rho_prime)
-            
-        # ---- B) Update noise parameter (MATCH PYTHON EXACTLY) ----
-        } else if (r < (rho_pct + noise_pct)) {
+            log_likelihood_currents <- c(log_likelihood_currents, llk_current)
+        }
+            else if (r < (rho_pct + noise_pct)) {
             update_category <- "noise"
             
             if (noise_option == "mallows_noise") {

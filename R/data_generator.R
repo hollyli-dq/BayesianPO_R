@@ -22,6 +22,7 @@ load_config <- function(config_path) {
     stop(paste("Error parsing YAML file:", e$message))
   })
 }
+config$prior$min_sub
 
 #' Generate synthetic data for partial order inference
 #' 
@@ -33,12 +34,12 @@ generate_data <- function(config) {
     # 1. Set up parameters for partial order generation
     n <- config$generation$n  # Number of nodes/items in the partial order
     N <- config$generation$N  # Number of total orders to sample from the partial order
-    min_sub <- config$prior$min_sub # min size of suborder    
+    min_sub <- config$min_sub # min size of suborder    
     # 2. Load configuration parameters
     K <- config$mcmc$K  # Number of dimensions for latent positions
     rho_prior <- config$prior$rho_prior  # Prior parameter for correlation
     noise_option <- config$noise$noise_option  # Noise model specification
-    noise_beta_prior<-config$prior$rho_prior$noise_beta_prior
+    noise_beta_prior<-config$prior$noise_beta_prior
  #   mallow_ua <- config$prior$mallow_ua  # Mallows model parameter
     prob_noise_true<- rbeta(1, 1,  noise_beta_prior)
     
@@ -110,11 +111,12 @@ generate_data <- function(config) {
     
     # 11. Generate total orders from subsets
     observed_orders <- list()
-    choice_sets <- list()
+    choice_sets <-list()
+    print(subsets)
     
     for (i in seq_len(N)) {
       choice_set       <- subsets[[i]]
-      choice_sets[[i]] <- paste0("Item_", choice_set)      # keep as strings
+      choice_sets[[i]] <-paste0("Item_",choice_set)     # keep as strings
       
       if (noise_option == "queue_jump") {
         order <- generate_total_order_queue_jump(
@@ -204,3 +206,4 @@ generate_data_main <- function(config_path = "config/data_generator_config.yaml"
     stop(e)
   })
 } 
+
