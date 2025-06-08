@@ -377,8 +377,8 @@ true_params <- list(
 
 config <- list(
   prior = list(
-    rho_prior = rho_prior,
-    noise_beta_prior = noise_beta_prior
+    rho_prior = fixed_cfg$rho_prior,
+    noise_beta_prior =  fixed_cfg$noise_beta_prior
   ),
   noise = list(
     noise_option = "queue_jump"
@@ -399,7 +399,7 @@ rj_config <- list(
   prior = list(
     rho_prior = rj_cfg$rho_prior,
     noise_beta_prior = rj_cfg$noise_beta_prior,
-    K_prior = K_prior
+    K_prior = rj_cfg$K_prior
   ),
   noise = list(
     noise_option = "queue_jump"
@@ -407,9 +407,9 @@ rj_config <- list(
 )
 
 rj_true_params <- list(
-  rho_true = data$rho_true,
-  prob_noise_true =data$prob_noise_true,
-  K_true = data$K
+  rho_true = rho_true,
+  prob_noise_true =prob_noise_true,
+  K_true = K
 )
 
 plot_mcmc_results(rj_results, 
