@@ -9,6 +9,39 @@ library(MASS)
 # ============================================================================
 # LIKELIHOOD COMPUTATION (PROPER IMPLEMENTATION)
 # ============================================================================
+# Create a cache environment at package level (persistent across calls)
+.likelihood_cache <- new.env(hash = TRUE)
+
+# Helper function to create cache keys
+create_cache_key <- function(adj_matrix) {
+  digest::digest(adj_matrix)
+}
+
+# Cache-aware number of linear extensions calculation
+get_nle <- function(adj_matrix) {
+  key <- create_cache_key(adj_matrix)
+  
+  if (exists(key, envir = .likelihood_cache)) {
+    return(get(key, envir = .likelihood_cache))
+  }
+  
+  val <- nle(adj_matrix)
+  assign(key, val, envir = .likelihood_cache)
+  return(val)
+}
+
+# Cache-aware number of extensions with first item calculation
+get_nle_first <- function(adj_matrix, local_idx) {
+  key <- paste0(create_cache_key(adj_matrix), "_", local_idx)
+  
+  if (exists(key, envir = .likelihood_cache)) {
+    return(get(key, envir = .likelihood_cache))
+  }
+  
+  val <-  num_extensions_with_first(adj_matrix, local_idx)
+  assign(key, val, envir = .likelihood_cache)
+  return(val)
+}
 
 #' Calculate log likelihood for queue jump noise model (proper implementation)
 #' 
@@ -39,13 +72,13 @@ log_likelihood_queue_jump <- function(h, observed_orders_idx, choice_sets, item_
       tr_remaining <- transitive_reduction(h_Z_remaining)
       
       # Count total linear extensions
-      num_le <- nle(tr_remaining)
+      num_le <- get_nle(tr_remaining)
       
       # Count extensions where y_j is first
       local_idx <- which(remaining_indices == y_j)
       if (length(local_idx) > 0 && num_le > 0) {
         # Use the proper algorithm to count extensions starting with y_j
-        num_first_item <- num_extensions_with_first(tr_remaining, local_idx)
+        num_first_item <- get_nle_first(tr_remaining, local_idx)
       } else {
         num_first_item <- 0
       }
@@ -163,9 +196,17 @@ calculate_log_likelihood <- function(Z, h, observed_orders_idx, choice_sets, ite
 #' @param random_seed Random seed
 #' @return List containing MCMC results
 #' @export
-mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, X,
-                              dr = 0.1, drbeta = 0.1, sigma_mallow = 0.1, sigma_beta = 1.0,
-                              noise_option = "queue_jump", mcmc_pt = c(0.25, 0.25, 0.25, 0.25),
+mcmc_partial_order <- function(observed_orders, 
+                               choice_sets,
+                               num_iterations, 
+                               K, 
+                               X,
+                              dr = 0.1, 
+                              drbeta = 0.1, 
+                              sigma_mallow = 0.1, 
+                              sigma_beta = 1.0,
+                              noise_option = "queue_jump", 
+                              mcmc_pt = c(0.25, 0.25, 0.25, 0.25),
                               rho_prior = 1/6, 
                               noise_beta_prior = NULL,   # <- now nullable
                               mallow_ua        = NULL,   # <- now nullable
@@ -190,8 +231,8 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
   # Setup: Map items to indices
   items <- sort(unique(unlist(choice_sets)))
   n <- length(items)
-  item_to_index <- setNames(0:(length(items)-1), items)
-  index_to_item <- setNames(items, 0:(length(items)-1))
+  item_to_index <- setNames(seq_along(items), items)
+  index_to_item <- setNames(items, seq_along(items))
   
   # Convert observed orders to index form
   observed_orders_idx <- lapply(observed_orders, function(order) {
@@ -278,7 +319,7 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
                                             item_to_index, prob_noise, mallow_theta_prime, noise_option)
         
         log_acceptance_ratio <- (log_prior_proposed + llk_prime) - (log_prior_current + llk_current) + 
-                               log(mallow_theta_prime / mallow_theta)  # Correct Jacobian
+                               log(mallow_theta/ mallow_theta_prime)  # Correct Jacobian
         
         acceptance_probability <- min(1.0, exp(log_acceptance_ratio))
         if (runif(1) < acceptance_probability) {
@@ -345,7 +386,7 @@ mcmc_partial_order <- function(observed_orders, choice_sets, num_iterations, K, 
     # Update beta
     else {
       j <- ((iteration-1) %% p) + 1  # Random component like Python
-      epsilon <- rnorm(1, 0, drbeta)
+      epsilon <- rnorm(1, 0, drbeta * sigma_beta) 
       beta_prime <- beta
       beta_prime[j] <- beta_prime[j] + epsilon
       alpha_prime <- as.vector(t(X) %*% beta_prime)

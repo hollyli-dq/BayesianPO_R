@@ -525,7 +525,129 @@ analyze_mcmc_results <- function(results, burn_in = 0, save_plots = FALSE) {
   cat("Analysis complete!\n")
 }
 
-# ============================================================================
+
+#' Plot beta parameter traces and densities
+#'
+#' @param mcmc_results List containing MCMC output (must include "beta_trace")
+#' @param true_param List containing true parameter values ("beta_true")
+#' @param config List containing configuration parameters
+#' @param burn_in Number of burn-in iterations to discard (default: 100)
+#' @param output_filepath Directory to save plots (default: ".")
+#' @return None (generates plots)
+#' @details Creates separate plots for each beta parameter showing trace and density,
+#'          with true values marked if available. Plots are saved as PDF files.
+plot_beta_parameters <- function(mcmc_results, 
+                                 true_param, 
+                                 config, 
+                                 burn_in = 100, 
+                                 output_filepath = ".") {
+  
+  # Set plotting style
+  suppressPackageStartupMessages({
+    library(ggplot2)
+    library(gridExtra)
+    library(viridis)
+  })
+  
+  # Font sizes for beta plots
+  beta_font <- list(
+    title = 8,
+    label = 7,
+    legend = 6,
+    ticks = 6
+  )
+  
+  # Extract beta trace
+  beta_trace <- mcmc_results$beta_trace
+  if (is.null(beta_trace)) {  # FIXED: Added missing parenthesis
+    message("No beta trace available.")
+    return(invisible(NULL))
+  }
+  
+  # Convert to matrix if it's a list
+  if (is.list(beta_trace)) {
+    beta_trace <- do.call(rbind, beta_trace)
+  }
+  
+  # Remove burn-in
+  if (burn_in > 0) {
+    beta_trace <- beta_trace[-(1:burn_in), , drop = FALSE]
+  }
+  
+  # Get true beta values if available
+  true_beta <- true_param$beta_true
+  
+  # Get dimensions
+  n_samples <- nrow(beta_trace)
+  p_dim <- ncol(beta_trace)
+  
+  # Create output directory if needed
+  if (!dir.exists(output_filepath)) {
+    dir.create(output_filepath, recursive = TRUE)
+  }
+  
+  # Create one plot per beta coefficient
+  for (d in 1:p_dim) {
+    
+    # Prepare data frame for plotting
+    plot_data <- data.frame(
+      iteration = (burn_in + 1):(burn_in + n_samples),
+      value = beta_trace[, d]
+    )
+    
+    # Create trace plot
+    trace_plot <- ggplot(plot_data, aes(x = iteration, y = value)) +
+      geom_line(color = viridis(p_dim)[d], alpha = 0.8, linewidth = 0.5) +
+      labs(title = paste0("β", d-1, " Trace"),
+           x = "Iteration",
+           y = "β value") +
+      theme_minimal(base_size = beta_font$ticks) +
+      theme(
+        plot.title = element_text(size = beta_font$title),
+        axis.title = element_text(size = beta_font$label),
+        panel.grid = element_line(linewidth = 0.1, color = "grey80")
+      )
+    
+    # Create density plot
+    density_plot <- ggplot(plot_data, aes(x = value)) +
+      geom_histogram(aes(y = ..density..), 
+                     bins = 30, 
+                     fill = viridis(p_dim)[d], 
+                     alpha = 0.5) +
+      geom_density(color = viridis(p_dim)[d], linewidth = 0.5) +
+      labs(title = paste0("β", d-1, " Density"),
+           x = "β value",
+           y = "Density") +
+      theme_minimal(base_size = beta_font$ticks) +
+      theme(
+        plot.title = element_text(size = beta_font$title),
+        axis.title = element_text(size = beta_font$label)
+      )
+    
+    # Add true value if available
+    if (!is.null(true_beta) && length(true_beta) >= d) {
+      density_plot <- density_plot +
+        geom_vline(xintercept = true_beta[d], 
+                   color = viridis(p_dim)[d], 
+                   linetype = "dashed",
+                   linewidth = 0.5)
+    }
+    
+    # Add sample mean
+    sample_mean <- mean(plot_data$value)
+    density_plot <- density_plot +
+      geom_vline(xintercept = sample_mean, 
+                 color = "green", 
+                 linetype = "dashed",
+                 linewidth = 0.5)
+    
+    # Combine plots
+    combined_plot <- grid.arrange(trace_plot, density_plot, ncol = 2)
+    
+  }
+  
+  invisible(NULL)
+}
 # EXAMPLE USAGE AND DEMONSTRATION
 # ============================================================================
 
@@ -563,3 +685,7 @@ run_example_analysis <- function() {
 
 # Helper function for null coalescing
 `%||%` <- function(x, y) if (is.null(x)) y else x 
+
+
+
+

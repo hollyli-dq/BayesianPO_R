@@ -84,6 +84,8 @@ transformation
 # Setup and Installation
 
 ```{r load-packages}
+
+source("../scripts/install_packages.R")
 # Load the BayesianPO package
 source("../R/utilities.R")
 source("../R/mcmc.R")
@@ -177,6 +179,7 @@ fixed_cfg <- list(
   drbeta           = 0.10,                      # beta step
   sigma_mal        = 0.10,                      # σ for Mallows θ proposal
   sigma_b          = 1.00,                      # prior sd for β
+  rho_prior        = 0.16667,
   noise_option     = "queue_jump",              # or "mallows_noise"
   noise_beta_prior = 9                        # queue-jump prior (omit for Mallows)
 
@@ -310,7 +313,7 @@ if (length(rj_results$log_likelihood_currents) > 0 &&
 # Acceptance rates over time
 if (length(mcmc_fix$acceptance_rates) > 0 && 
     all(is.finite(mcmc_fix$acceptance_rates))) {
-  plot(mcmc_results$acceptance_rates, type = "l", 
+  plot(mcmc_fix$acceptance_rates, type = "l", 
        main = "Acceptance Rate (Fixed K)", xlab = "Iteration", ylab = "Acceptance Rate")
 } else {
   plot(1, type = "n", main = "Acceptance Rate (Fixed K) - No Valid Data", 
@@ -394,8 +397,8 @@ plot_mcmc_results(mcmc_fix,
 # Create comprehensive trace plots for RJ-MCMC with K dimension
 rj_config <- list(
   prior = list(
-    rho_prior = rho_prior,
-    noise_beta_prior = noise_beta_prior,
+    rho_prior = rj_cfg$rho_prior,
+    noise_beta_prior = rj_cfg$noise_beta_prior,
     K_prior = K_prior
   ),
   noise = list(
@@ -404,9 +407,9 @@ rj_config <- list(
 )
 
 rj_true_params <- list(
-  rho_true = rho_true,
-  prob_noise_true = prob_noise_true,
-  K_true = K
+  rho_true = data$rho_true,
+  prob_noise_true =data$prob_noise_true,
+  K_true = data$K
 )
 
 plot_mcmc_results(rj_results, 
@@ -467,7 +470,7 @@ if ("update_df" %in% names(rj_results)) {
 threshold <- 0.5
 
 # Extract post-burn-in partial order traces
-h_trace_fixed_post_burnin <- mcmc_fix$h_trace[(burn_in_index + 1):length(mcmc_results$h_trace)]
+h_trace_fixed_post_burnin <- mcmc_fix$h_trace[(burn_in_index + 1):length(mcmc_fix$h_trace)]
 h_trace_rj_post_burnin <- rj_results$h_trace[(burn_in_index + 1):length(rj_results$h_trace)]
 
 # Compute posterior mean partial orders

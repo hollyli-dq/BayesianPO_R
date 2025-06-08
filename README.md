@@ -10,9 +10,6 @@ source("scripts/install_packages.R")
 
 # 2. Test the installation
 source("examples/simple_test.R")
-
-# 3. Run full pipeline
-source("examples/simple_cli_test.R")
 ```
 
 ## 📁 Project Structure
@@ -24,13 +21,13 @@ BayesianPO/
 ├── NAMESPACE                    # R package namespace
 │
 ├── R/                          # Core R functions
-│   ├── cli.R                   # Command line interface
 │   ├── data_generator.R        # Data generation functions
 │   ├── po_inference.R          # Inference functions
 │   ├── mcmc.R                  # Fixed dimension MCMC
 │   ├── mcmc_rj.R              # Reversible jump MCMC
 │   ├── utilities.R            # Utility functions
 │   └── analysis.R             # Analysis and plotting
+│   └── sushi.R             # Analysis Sushi data 
 │
 ├── config/                     # Configuration files
 │   ├── data_generator_config.yaml
@@ -38,7 +35,6 @@ BayesianPO/
 │
 ├── examples/                   # Example scripts and tests
 │   ├── simple_test.R          # Basic functionality test
-│   ├── simple_cli_test.R      # Full pipeline test
 │   ├── simple_inference_test.R # Inference-only test
 │   └── test_comprehensive_functions.R # Complete test suite
 │
@@ -49,9 +45,8 @@ BayesianPO/
 │   ├── README_COMPREHENSIVE_FUNCTIONS.md # Function documentation
 │   ├── QUICK_SETUP.md         # Quick setup guide
 │   ├── MCMC_Simulation_Tutorial.Rmd # Detailed tutorial
-│   └── MCMC_Simulation_Tutorial_files/ # Tutorial assets
-│
-├── data/                       # Data directory (for your datasets)
+│   └── sushi_study.rmd         # The sushi study 
+├── data/                       # Data directory (for your datasets, including the sushi)
 ├── results/                    # Output directory for results
 ├── tests/                      # Unit tests (R package structure)
 ├── man/                        # Manual pages (R package structure)
@@ -94,22 +89,6 @@ install.packages(c("yaml", "jsonlite", "mvtnorm", "optparse", "igraph"))
 ```
 
 ## 💻 Usage
-
-### Command Line Interface
-
-``` bash
-# Show help
-Rscript R/cli.R --help
-
-# Generate data and run inference
-Rscript R/cli.R --iterations 1000 --use-rj-mcmc
-
-# Generate data only
-Rscript R/cli.R --generate-data --output-dir results
-
-# Run inference with existing data
-Rscript R/cli.R --inference-only --use-rj-mcmc --verbose
-```
 
 ### R Functions
 

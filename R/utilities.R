@@ -592,7 +592,7 @@ generate_synthetic_data <- function(n_items = 6, n_observations = 50,     min_su
   h_full <- generate_partial_order(eta_true)
   
   # Then compute its transitive reduction to remove redundant edges
-  h_true <- transitive_reduction(h_full)
+  h_true <- transitive_closure(h_full)
   
   # Generate item names
   items <- paste0("Item_", 1:n_items)

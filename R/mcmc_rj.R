@@ -39,8 +39,8 @@ mcmc_partial_order_k <- function(
     noise_option = "queue_jump",
     mcmc_pt = c(0.15, 0.15, 0.3, 0.15, 0.25),
     rho_prior = 1/6,
-    noise_beta_prior = 9,
-    mallow_ua = 1,
+    noise_beta_prior = NULL,  
+    mallow_ua        = NULL, 
     K_prior = 3.0,
     random_seed = 123
 ) {
@@ -48,24 +48,19 @@ mcmc_partial_order_k <- function(
     
     noise_option <- match.arg(noise_option)
     
-    ## -------------------------------------------------------------------------
-    ## Enforce that only the relevant prior is supplied for the chosen noise
-    ## model.  (Same logic as in mcmc_partial_order.)
-    ## -------------------------------------------------------------------------
+    ## -- enforce mutually-exclusive hyper-parameters --------------------------
     if (noise_option == "queue_jump") {
         if (is.null(noise_beta_prior))
             stop("`noise_beta_prior` must be provided when noise_option = 'queue_jump'")
         if (!is.null(mallow_ua))
             message("Ignoring `mallow_ua` because queue-jump noise is selected.")
-    } else {  # mallows_noise
+    } else {                              # mallows_noise
         if (is.null(mallow_ua))
             stop("`mallow_ua` must be provided when noise_option = 'mallows_noise'")
         if (!is.null(noise_beta_prior))
             message("Ignoring `noise_beta_prior` because Mallows noise is selected.")
     }
     
-    # Set random seed
-    set.seed(random_seed)
     
     # ----------------------------------------------------------------
     # 1. Setup: Map items to indices, initialize states, etc.
@@ -73,8 +68,8 @@ mcmc_partial_order_k <- function(
     
     items <- sort(unique(unlist(choice_sets)))
     n <- length(items)
-    item_to_index <- setNames(0:(length(items)-1), items)
-    index_to_item <- setNames(items, 0:(length(items)-1))
+    item_to_index <- setNames(seq_along(items), items)
+    index_to_item <- setNames(items, seq_along(items))
     
     # Convert observed orders to index form
     observed_orders_idx <- lapply(observed_orders, function(order) {
