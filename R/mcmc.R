@@ -246,7 +246,12 @@ mcmc_partial_order <- function(observed_orders,
   p <- nrow(X)
   beta <- rnorm(p, 0, sigma_beta)
   alpha <- as.vector(t(X) %*% beta)
+  print(Z)
+  print(alpha
   eta <- transform_U_to_eta(Z, alpha)
+  if (anyNA(eta)) {
+    stop("transform_U_to_eta() produced NA values")
+  }
   h_Z <- generate_partial_order(eta)
   
   # Initialize parameters

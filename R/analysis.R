@@ -685,7 +685,391 @@ run_example_analysis <- function() {
 
 # Helper function for null coalescing
 `%||%` <- function(x, y) if (is.null(x)) y else x 
+#' Compare MCMC results for a specific parameter between fixed and RJ models
+#'
+#' Compare MCMC results for a specific parameter between fixed and RJ models
+#'
+#' @param mcmc_fixed MCMC results from fixed-dimension model (list with traces)
+#' @param mcmc_rj MCMC results from reversible jump model (list with traces)
+#' @param param Name of parameter to analyze ("rho", "prob_noise", "tau", etc.)
+#' @param burn_in Burn-in period to remove from traces (default = 0)
+#' @param true_value Optional true parameter value to display (default = NULL)
+#' @param trace_name_fixed Name of trace in mcmc_fixed (default = paste0(param, "_trace"))
+#' @param trace_name_rj Name of trace in mcmc_rj (default = paste0(param, "_trace"))
+#' @param output_filename Output filename for saving plot (default = ""). Leave empty to display plot
+#' @param output_filepath Output directory path (default = ".")
+#' @param colors Vector of two colors for fixed/RJ results (default = c("blue", "red"))
+#' @export
+mcmc_result_compare_parameter_analysis <- function(
+    mcmc_fixed, 
+    mcmc_rj, 
+    param, 
+    burn_in = 0,
+    true_value = NULL,
+    trace_name_fixed = NULL,
+    trace_name_rj = NULL,
+    output_filename = "",
+    output_filepath = ".",
+    colors = c("blue", "red")
+) {
+  # Helper for null coalescing
+  `%||%` <- function(x, y) if (is.null(x)) y else x
+  
+  # Determine trace names
+  trace_name_fixed <- trace_name_fixed %||% paste0(param, "_trace")
+  trace_name_rj <- trace_name_rj %||% paste0(param, "_trace")
+  
+  # Validate traces exist
+  if (!trace_name_fixed %in% names(mcmc_fixed)) {
+    stop("Fixed trace '", trace_name_fixed, "' not found in mcmc_fixed")
+  }
+  if (!trace_name_rj %in% names(mcmc_rj)) {
+    stop("RJ trace '", trace_name_rj, "' not found in mcmc_rj")
+  }
+  
+  # Extract traces
+  trace_fixed_orig <- mcmc_fixed[[trace_name_fixed]]
+  trace_rj_orig <- mcmc_rj[[trace_name_rj]]
+  
+  # Apply burn-in
+  extract_post_burnin <- function(trace, burn_in) {
+    if (burn_in > 0) {
+      if (is.matrix(trace)) {
+        trace[(burn_in + 1):nrow(trace), , drop = FALSE]
+      } else {
+        trace[(burn_in + 1):length(trace)]
+      }
+    } else {
+      trace
+    }
+  }
+  
+  trace_fixed <- extract_post_burnin(trace_fixed_orig, burn_in)
+  trace_rj <- extract_post_burnin(trace_rj_orig, burn_in)
+  
+  # Process vector parameters
+  process_vector_trace <- function(trace) {
+    if (is.matrix(trace) && ncol(trace) > 1) {
+      rowMeans(trace)
+    } else if (is.matrix(trace)) {
+      as.vector(trace)
+    } else {
+      trace
+    }
+  }
+  
+  trace_fixed <- process_vector_trace(trace_fixed)
+  trace_rj <- process_vector_trace(trace_rj)
+  
+  # Handle true value
+  if (!is.null(true_value)) {
+    if (length(true_value) > 1) {
+      true_value <- mean(true_value)
+      warning("true_value length >1 - using mean for plotting")
+    }
+  }
+  
+  # Setup graphics only if saving to file
+  if (nzchar(output_filename)) {
+    pdf(file.path(output_filepath, output_filename), width = 10, height = 5)
+    on.exit(dev.off(), add = TRUE)
+  }
+  
+  # Set up plot layout with better legend positioning
+  old_par <- par(no.readonly = TRUE)
+  on.exit(par(old_par), add = TRUE)
+  
+  # Use layout for better control
+  layout(matrix(c(1, 2), nrow = 1, ncol = 2))
+  par(mar = c(5, 4, 4, 2) + 0.1, oma = c(0, 0, 2, 0))
+  
+  # 1. Trace Plot with improved legend positioning
+  iterations_fixed <- (burn_in + 1):(burn_in + length(trace_fixed))
+  iterations_rj <- (burn_in + 1):(burn_in + length(trace_rj))
+  
+  y_range <- range(c(trace_fixed, trace_rj), na.rm = TRUE)
+  
+  plot(iterations_fixed, trace_fixed, type = "l", col = colors[1],
+       ylim = y_range, xlab = "Iteration", ylab = param,
+       main = "Trace Comparison", cex.main = 1.2)
+  lines(iterations_rj, trace_rj, col = colors[2])
+  grid()
+  
+  if (burn_in > 0) {
+    abline(v = burn_in, col = "gray50", lty = 2, lwd = 1.5)
+  }
+  
+  # Place legend in top-left where there's typically more space
+  legend("topleft", 
+         legend = c(paste("Fixed (n =", length(trace_fixed)), 
+                    paste("RJ (n =", length(trace_rj)), 
+                    if(burn_in>0) "Burn-in end"),
+         col = c(colors, if(burn_in>0) "gray50"),
+         lty = c(1, 1, if(burn_in>0) 2),
+         lwd = c(2, 2, if(burn_in>0) 1.5),
+         cex = 0.9,
+         bg = "NA")
+  
+  # 2. Density Plot with improved legend positioning
+  dens_fixed <- density(trace_fixed)
+  dens_rj <- density(trace_rj)
+  
+  x_range <- range(c(dens_fixed$x, dens_rj$x))
+  y_range_dens <- range(c(dens_fixed$y, dens_rj$y))
+  
+  # Extend y-range slightly for legend space
+  y_range_dens[2] <- y_range_dens[2] * 1.1
+  
+  plot(dens_fixed, col = colors[1], lwd = 2, 
+       main = "Density Comparison", cex.main = 1.2,
+       xlim = x_range, ylim = y_range_dens, 
+       xlab = param, ylab = "Density")
+  lines(dens_rj, col = colors[2], lwd = 2)
+  grid()
+  
+  # Add means and true value
+  abline(v = mean(trace_fixed), col = colors[1], lty = 2, lwd = 1.5)
+  abline(v = mean(trace_rj), col = colors[2], lty = 2, lwd = 1.5)
+  
+  legend_items <- c("Fixed density", "RJ density", 
+                    "Fixed mean", "RJ mean")
+  legend_colors <- c(colors, colors)
+  legend_lty <- c(1, 1, 1.5, 1.5)
+  legend_lwd <- c(2, 2, 1.5, 1.5)
+  
+  if (!is.null(true_value)) {
+    abline(v = true_value, col = "black", lty = 1, lwd = 1.5)
+    legend_items <- c(legend_items, "True value")
+    legend_colors <- c(legend_colors, "black")
+    legend_lty <- c(legend_lty, 1)
+    legend_lwd <- c(legend_lwd, 3)
+  }
+  
+  # Place legend at top where there's more space
+  legend("top", 
+         legend = legend_items, 
+         col = legend_colors, 
+         lty = legend_lty,
+         lwd = legend_lwd,
+         ncol = 2,
+         cex = 0.8,
+         bg = NA,         # Transparent background (no color)
+         box.lty = 0)     # Remove box border
+  
+  # Add overall title
+  title(paste(param, " comparison: Fixed vs Reversible Jump"), 
+        outer = TRUE, cex.main = 1.5)
+  
+  # Return nothing - just show the plot
+  invisible()
+}
+
+
+plot_beta_parameters_dual <- function(mcmc_r,
+                                      mcmc_py,
+                                      true_param = NULL,      # <- can be numeric or list
+                                      burn_in    = 100,
+                                      out_dir    = ".",
+                                      prefix     = "beta_compare") {
+  
+  suppressPackageStartupMessages({
+    library(ggplot2)
+    library(viridis)
+  })
+  
+  # ── helper: stack trace -------------------------------------------------
+  tidy_trace <- function(beta_trace, label, burn) {
+    if (is.list(beta_trace)) beta_trace <- do.call(rbind, beta_trace)
+    if (burn > 0) beta_trace <- beta_trace[-seq_len(burn), , drop = FALSE]
+    
+    data.frame(
+      value = as.vector(beta_trace),
+      dim   = factor(rep(seq_len(ncol(beta_trace)) - 1, each = nrow(beta_trace)),
+                     labels = paste0("beta", seq_len(ncol(beta_trace)) - 1)),
+      src   = label
+    )
+  }
+  
+  df_r  <- tidy_trace(mcmc_r$beta_trace,  "R",  burn_in)
+  df_py <- tidy_trace(mcmc_py$beta_trace, "Py", burn_in)
+  trace_all <- rbind(df_r, df_py)
+  
+  if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
+  
+  pal <- c(R  = viridis(2, end = .8)[1],
+           Py = viridis(2, end = .8)[2])
+  
+  p <- ggplot(trace_all, aes(dim, value, fill = src, colour = src)) +
+    geom_boxplot(position = position_dodge(.65),
+                 width = .55, alpha = .7, outlier.alpha = .25) +
+    scale_fill_manual(values = pal, name = "") +
+    scale_colour_manual(values = pal, guide = "none") +
+    labs(title = "Posterior beta distributions (R vs Python)",
+         x     = "beta index",
+         y     = "beta value") +
+    theme_minimal(base_size = 10) +
+    theme(legend.position = "top")
+  
+  # ── handle true β vector -----------------------------------------------
+  # Accept either numeric vector or list(beta_true = vec)
+  if (!is.null(true_param)) {
+    if (is.numeric(true_param)) {
+      beta_true <- true_param
+    } else if (is.list(true_param) && !is.null(true_param$beta_true)) {
+      beta_true <- true_param$beta_true
+    } else {
+      stop("true_param must be a numeric vector or list(beta_true = …)")
+    }
+    
+    ndims <- length(levels(trace_all$dim))
+    if (length(beta_true) != ndims) {
+      warning("length(beta_true) != number of beta dimensions; using the first ",
+              min(length(beta_true), ndims), " values")
+      beta_true <- beta_true[seq_len(min(length(beta_true), ndims))]
+    }
+    
+    # numeric positions 1, 2, …  (no more as.numeric() on characters!)
+    true_df <- data.frame(
+      dim_idx = seq_along(beta_true),
+      value   = beta_true
+    )
+    
+    p <- p +
+      geom_segment(data = true_df,
+                   aes(x = dim_idx - .4, xend = dim_idx + .4,
+                       y = value, yend = value),
+                   inherit.aes = FALSE,
+                   linetype = "dashed", colour = "black", linewidth = .4)
+  }
+  
+  ggsave(file.path(out_dir, paste0(prefix, "_boxplot.pdf")),
+         p, width = 7, height = 4, device = cairo_pdf)
+  print(p)               # show in RStudio / R GUI
+  
+  invisible(NULL)
+}
 
 
 
 
+#' Plot MCMC inferred variables for TWO data sources (R + Python)
+#'
+#' @param mcmc_r  List with R-side MCMC output (names: rho_trace, ...).
+#' @param mcmc_py List with Python-side MCMC output (same structure).
+#' @param true_param (optional) list of true values, e.g. list(rho_true = 0.7)
+#' @param config     (optional) prior hyper-params list (same as before)
+#' @param burn_in    integer burn-in to drop from both traces
+#' @param out_file   optional PDF filename; if "", plots go to screen
+#' @param out_dir    directory for the PDF
+#'
+#' @return invisible NULL (makes side-by-side trace+density panels)
+#'
+plot_mcmc_results_dual <- function(mcmc_r,
+                                   mcmc_py,
+                                   true_param = list(),
+                                   config     = list(),
+                                   burn_in    = 0,
+                                   out_file   = "",
+                                   out_dir    = ".") {
+  
+  `%||%` <- function(x, y) if (is.null(x)) y else x
+  suppressPackageStartupMessages({ library(viridis) })
+  
+  # ----- helper to fetch & burn --------------------------------------------
+  get_trace <- function(obj, key) {
+    tr <- obj[[key]]
+    if (is.null(tr)) return(NULL)
+    if (length(tr) > burn_in) tr[-seq_len(burn_in)] else NULL
+  }
+  
+  trace_keys <- list(rho = "rho_trace",
+                     prob_noise = "prob_noise_trace",
+                     K   = "K_trace")
+  
+  # colour per source
+  pal <- c(R  = "steelblue",
+           Py = "darkorange")
+  
+  # collect for each variable
+  plot_list <- list()
+  for (v in names(trace_keys)) {
+    key <- trace_keys[[v]]
+    
+    tr_r  <- get_trace(mcmc_r,  key)
+    tr_py <- get_trace(mcmc_py, key)
+    
+    if (is.null(tr_r) && is.null(tr_py)) next
+    
+    # convert matrices to scalar summary (mean) if needed
+    summarise <- function(x) if (is.matrix(x) || is.array(x)) apply(x, 1, mean) else x
+    tr_r  <- if (!is.null(tr_r))  summarise(tr_r)  else NULL
+    tr_py <- if (!is.null(tr_py)) summarise(tr_py) else NULL
+    
+    df <- data.frame(
+      iter = c(seq_along(tr_r),            seq_along(tr_py)),
+      val  = c(tr_r,                       tr_py),
+      src  = factor(c(rep("R",  length(tr_r)),
+                      rep("Py", length(tr_py))))
+    )
+    
+    plot_list[[v]] <- df
+  }
+  
+  if (length(plot_list) == 0) stop("No trace keys found in either object")
+  
+  # open pdf if requested
+  if (nzchar(out_file)) {
+    if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
+    pdf(file.path(out_dir, out_file),
+        width = 8, height = 4 * length(plot_list))
+  }
+  
+  oldpar <- par(no.readonly = TRUE)
+  on.exit(par(oldpar), add = TRUE)
+  par(mfrow = c(length(plot_list), 2), mar = c(4, 4, 3, 2))
+  
+  for (v in names(plot_list)) {
+    df <- plot_list[[v]]
+    
+    # --- TRACE --------------------------------------------------------------
+    plot(df$iter, df$val, type = "n",
+         main = paste("Trace:", v), xlab = "Iter", ylab = v,
+         family = "serif")
+    grid(col = "grey80", lty = 3)
+    by(df, df$src,
+       function(sub) lines(sub$iter, sub$val, col = pal[as.character(sub$src)[1]], lwd = 1))
+    
+    # mark burn-in
+    if (burn_in > 0) abline(v = burn_in, col = "red", lty = 2)
+    
+    legend("topright", legend = names(pal), col = pal, lwd = 2, cex = .8)
+    
+    # --- DENSITY ------------------------------------------------------------
+    hist(df$val[df$src == "R"], breaks = 30, freq = FALSE,
+         col = adjustcolor(pal["R"], .4), border = pal["R"],
+         xlab = v, ylab = "Density",
+         main = paste("Density:", v), family = "serif")
+    rug(df$val[df$src == "R"], col = pal["R"])
+    lines(density(df$val[df$src == "R"]), col = pal["R"], lwd = 1)
+    
+    if (any(df$src == "Py")) {
+      hist(df$val[df$src == "Py"], breaks = 30, freq = FALSE, add = TRUE,
+           col = adjustcolor(pal["Py"], .4), border = pal["Py"])
+      rug(df$val[df$src == "Py"], col = pal["Py"])
+      lines(density(df$val[df$src == "Py"]), col = pal["Py"], lwd = 1)
+    }
+    
+    # true value?
+    true_key <- paste0(v, "_true")
+    if (!is.null(true_param[[true_key]]))
+      abline(v = true_param[[true_key]], col = "black", lwd = 2, lty = 2)
+    
+    # sample means
+    abline(v = mean(df$val[df$src == "R"]),  col = pal["R"],  lty = 3, lwd = 2)
+    if (any(df$src == "Py"))
+      abline(v = mean(df$val[df$src == "Py"]), col = pal["Py"], lty = 3, lwd = 2)
+  }
+  
+  if (nzchar(out_file)) dev.off()
+  invisible(NULL)
+}

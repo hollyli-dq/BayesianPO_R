@@ -1,16 +1,18 @@
 ---
 title: "MCMC Simulation for Partial Order Inference"
-subtitle: "Bayesian Inference with Reversible Jump MCMC"
 author: "BayesianPO Package"
 date: "`r Sys.Date()`"
-output: 
+output:
+  pdf_document:
+    toc: true
   html_document:
     toc: true
     toc_float: true
     code_folding: show
     theme: flatly
-editor_options: 
-  markdown: 
+subtitle: Bayesian Inference with Reversible Jump MCMC
+editor_options:
+  markdown:
     wrap: 72
 ---
 
@@ -170,7 +172,7 @@ plot_partial_order(
 ```{r fixed-mcmc}
 # MCMC parameters
 fixed_cfg <- list(
-  iters            = 10000,                      # total MH iterations
+  iters            = 100000,                      # total MH iterations
   mcmc_pt          = c(rho  = 0.20,             # update probabilities
                        noise = 0.20,
                        U     = 0.40,
@@ -230,7 +232,7 @@ complexity.
 ## ---- rj-mcmc ---------------------------------------------------------------
 # 1.  Configuration list ------------------------------------------------------
 rj_cfg <- list(
-  iters            = 10000,                      # total RJ iterations
+  iters            = 100000,                      # total RJ iterations
   mcmc_pt          = c(rho  = 0.15,             # update probabilities
                        noise = 0.15,
                        U     = 0.30,
@@ -416,6 +418,24 @@ plot_mcmc_results(rj_results,
                  true_param = rj_true_params,
                  config = rj_config,
                  burn_in = 2)
+```
+
+```{r}
+mcmc_result_compare_parameter_analysis(
+  mcmc_fixed = mcmc_fix,
+  mcmc_rj = rj_results,
+  param = "rho",
+  burn_in = burn_in_index,
+  true_value = true_params$rho_true
+)
+
+mcmc_result_compare_parameter_analysis(
+  mcmc_fixed = mcmc_fix,
+  mcmc_rj = rj_results,
+  param = "prob_noise",
+  burn_in = burn_in_index,
+  true_value = true_params$prob_noise_true
+)
 ```
 
 ## Dimension Selection Analysis
