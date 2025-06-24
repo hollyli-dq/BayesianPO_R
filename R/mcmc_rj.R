@@ -122,6 +122,7 @@ mcmc_partial_order_k <- function(
         
         # ---- A) Update rho (MATCH PYTHON EXACTLY) ----
         if (r < rho_pct) {
+            update_category <- "rho"
             delta <- runif(1, dr, 1/dr)  # Correct range
             rho_prime <- 1.0 - (1.0 - rho) * delta
             
@@ -175,7 +176,7 @@ mcmc_partial_order_k <- function(
         # ---- C) Update U (latent matrix Z) - MATCH PYTHON EXACTLY ----
         } else if (r <= (rho_pct + noise_pct + U_pct)) {
             update_category <- "U"
-            i <- sample(0:(n-1), 1)  # 0-indexed like Python
+            i <- sample(1:n, 1)  # 0-indexed like Python
             current_row <- Z[i+1, ]  # Convert to 1-indexed for R
             
             # Build proposal covariance matrix (MATCH PYTHON)

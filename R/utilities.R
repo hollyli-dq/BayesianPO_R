@@ -701,5 +701,3 @@ dRprior <- log_rho_prior
 rRprior <- sample_rho_prior
 dPprior <- log_noise_prior
 rPprior <- sample_noise_prior
-dTprior <- log_theta_prior
-rTprior <- sample_theta_prior 

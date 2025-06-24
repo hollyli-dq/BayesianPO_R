@@ -170,8 +170,6 @@ mcmc_partial_order <- function(observed_orders,
   # Initialize MCMC state (PROPER INITIALIZATION)
   # Start with random initialization like Python, not zeros
   Z <- matrix(0, nrow = n, ncol = K)
-  
-  p <- nrow(X)
   alpha <- numeric(n)  # This creates a vector of n zeros
   eta <- transform_U_to_eta(Z, alpha)
   if (anyNA(eta)) {

@@ -109,25 +109,15 @@ The configuration
 n                <- 5          # number of items
 N                <- 30         # number of total orders
 K                <- 3           # latent dimensions
-p                <- 2           # number of covariates
 min_sub          <- 3  
 rho_prior        <- 0.16667     # prior mean for rho  (Beta(1, (1/ρ₀)–1))
 prob_noise_true  <- 0.10        # queue-jump noise used to *simulate* data
-beta_true        <- c(0.5, -0.3)# true regression coefficients
 rng_seed         <- 42          # reproducibility
 noise_option <-  "queue_jump"
 set.seed(rng_seed)
 
 # draw rho_true from Beta(1, b) with mean = rho_prior
 rho_true <- 0.9
-
-# design matrix  X  of size p × n  (independent standard-normal entries)
-X <- matrix(rnorm(p * n), nrow = p, ncol = n)
-
-```
-
-```{r}
-X
 ```
 
 ## Generate Synthetic Partial Order
@@ -142,8 +132,6 @@ synthetic_data <- generate_synthetic_data(
   K               = K,
   rho_true        = rho_true,
   prob_noise_true = prob_noise_true,
-  beta_true       = beta_true,
-  X               = t(X),          # generator expects n × p
   random_seed     = rng_seed
 )
 
@@ -177,15 +165,11 @@ plot_partial_order(
 ```{r fixed-mcmc}
 # MCMC parameters
 fixed_cfg <- list(
-  iters            = 100000,                      # total MH iterations
-  mcmc_pt          = c(rho  = 0.20,             # update probabilities
-                       noise = 0.20,
-                       U     = 0.40,
-                       beta  = 0.20),
+  iters            = 10000,                      # total MH iterations
+  mcmc_pt          = c(rho  = 0.30,             # update probabilities
+                       noise = 0.30,
+                       U     = 0.40),
   dr               = 0.10,                      # rho step
-  drbeta           = 0.10,                      # beta step
-  sigma_mal        = 0.10,                      # σ for Mallows θ proposal
-  sigma_b          = 1.00,                      # prior sd for β
   rho_prior        = 0.16667,
   noise_option     = "queue_jump",              # or "mallows_noise"
   noise_beta_prior = 9                        # queue-jump prior (omit for Mallows)
@@ -198,24 +182,16 @@ args_fix <- list(
   choice_sets     = choice_sets,
   num_iterations  = fixed_cfg$iters,
   K               = K,
-  X               = X,
   dr              = fixed_cfg$dr,
-  drbeta          = fixed_cfg$drbeta,
-  sigma_mallow    = fixed_cfg$sigma_mal,
-  sigma_beta      = fixed_cfg$sigma_b,
   mcmc_pt         = fixed_cfg$mcmc_pt,
   rho_prior       = rho_prior,
   random_seed     = rng_seed
 )
 
-# 3.  Attach the correct noise-specific prior ---------------------------------
-if (fixed_cfg$noise_option == "queue_jump") {
-  args_fix$noise_option     <- "queue_jump"
-  args_fix$noise_beta_prior <- fixed_cfg$noise_beta_prior   # keep
-} else {  # "mallows_noise"
-  args_fix$noise_option <- "mallows_noise"
-  args_fix$mallow_ua    <- fixed_cfg$mallow_ua              # keep
-}
+
+args_fix$noise_option     <- "queue_jump"
+args_fix$noise_beta_prior <- fixed_cfg$noise_beta_prior 
+
 
 # 4.  Run the sampler ---------------------------------------------------------
 mcmc_fix <- do.call(mcmc_partial_order, args_fix)
@@ -237,16 +213,12 @@ complexity.
 ## ---- rj-mcmc ---------------------------------------------------------------
 # 1.  Configuration list ------------------------------------------------------
 rj_cfg <- list(
-  iters            = 100000,                      # total RJ iterations
-  mcmc_pt          = c(rho  = 0.15,             # update probabilities
-                       noise = 0.15,
+  iters            = 10000,                      # total RJ iterations
+  mcmc_pt          = c(rho  = 0.25,             # update probabilities
+                       noise = 0.25,
                        U     = 0.30,
-                       beta  = 0.15,
-                       K     = 0.25),
+                       K     = 0.20),
   dr               = 0.10,                      # rho step
-  drbeta           = 0.10,                      # beta step
-  sigma_mal        = 0.10,                      # σ for Mallows θ proposal
-  sigma_b          = 1.00,                      # prior sd for β
   K_prior          = 3.0,                       # Poisson(λ) prior for K
   noise_option     = "queue_jump",              # or "mallows_noise"
   noise_beta_prior = 9                         # used **only** for queue-jump
@@ -261,26 +233,15 @@ args_common <- list(
   observed_orders = observed_orders,
   choice_sets     = choice_sets,
   num_iterations  = num_it,
-  X               = X,
   dr              = rj_cfg$dr,
-  drbeta          = rj_cfg$drbeta,
-  sigma_mallow    = rj_cfg$sigma_mal,
-  sigma_beta      = rj_cfg$sigma_b,
   mcmc_pt         = mcmc_pt_rj,
   rho_prior       = rho_prior,
   K_prior         = rj_cfg$K_prior,
   random_seed     = 42
 )
 
-if (rj_cfg$noise_option == "queue_jump") {
-  args_common$noise_option      <- "queue_jump"
-  args_common$noise_beta_prior  <- rj_cfg$noise_beta_prior   # keep
-  # drop Mallows prior
-} else {
-  args_common$noise_option      <- "mallows_noise"
-  args_common$mallow_ua         <- rj_cfg$mallow_ua          # keep
-  # drop queue-jump prior
-}
+args_common$noise_option     <- "queue_jump"
+args_common$noise_beta_prior <- fixed_cfg$noise_beta_prior   # keep
 
 # 4.  Run the sampler ---------------------------------------------------------
 rj_results <- do.call(mcmc_partial_order_k, args_common)
@@ -292,7 +253,7 @@ cat(sprintf(
 
 ```
 
-# Results and Diagnosics
+# Results and Diagnosis
 
 ```{r convergence, fig.width=12, fig.height=8}
 # Plot log-likelihood traces
@@ -355,19 +316,17 @@ rj_burn_indices <- (burn_in/100 + 1):length(rj_results$rho_trace)
 
 # Fixed dimension estimates
 rho_est_fixed <- mean(mcmc_fix$rho_trace[burn_indices])
-beta_est_fixed <- colMeans(do.call(rbind, mcmc_fix$beta_trace[burn_indices]))
 
 # Reversible jump estimates  
 rho_est_rj <- mean(rj_results$rho_trace[rj_burn_indices])
-beta_est_rj <- colMeans(do.call(rbind, rj_results$beta_trace[rj_burn_indices]))
 K_est_rj <- round(mean(rj_results$K_trace[rj_burn_indices]))
 
 # Create comparison table
 comparison_df <- data.frame(
-  Parameter = c("rho", "beta_1", "beta_2", "K"),
-  True_Value = c(rho_true, beta_true, K),
-  Fixed_MCMC = c(rho_est_fixed, beta_est_fixed, K),
-  RJ_MCMC = c(rho_est_rj, beta_est_rj, K_est_rj)
+  Parameter = c("rho", "K"),
+  True_Value = c(rho_true, K),
+  Fixed_MCMC = c(rho_est_fixed, K),
+  RJ_MCMC = c(rho_est_rj, K_est_rj)
 )
 
 print(comparison_df)
