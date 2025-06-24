@@ -7,7 +7,6 @@ library(mvtnorm)
 
 #' Reversible Jump MCMC for Partial Order Inference (CORRECTED IMPLEMENTATION)
 #' 
-#' Perform MCMC sampling to infer the partial order h, plus parameters (rho, prob_noise, mallow_theta).
 #' This function includes reversible jump moves to automatically determine the optimal number of latent dimensions K.
 #' 
 #' @param observed_orders List of observed total orders
@@ -15,14 +14,9 @@ library(mvtnorm)
 #' @param num_iterations Number of MCMC iterations
 #' @param X Design matrix for covariates
 #' @param dr Multiplicative step size for rho
-#' @param drbeta Multiplicative step size for beta
-#' @param sigma_mallow Parameter controlling random-walk for mallow_theta
-#' @param sigma_beta Standard deviation for beta prior
-#' @param noise_option Noise model ("queue_jump" or "mallows_noise")
-#' @param mcmc_pt Vector of update probabilities (rho, noise, U, beta, K)
+#' @param mcmc_pt Vector of update probabilities (rho, noise, U, K)
 #' @param rho_prior Prior parameter for rho
 #' @param noise_beta_prior Prior parameter for noise
-#' @param mallow_ua Prior parameter for Mallows model
 #' @param K_prior Prior parameter for K (Poisson rate)
 #' @param random_seed Random seed for reproducibility
 #' @return List containing MCMC traces and diagnostics
@@ -31,16 +25,11 @@ mcmc_partial_order_k <- function(
     observed_orders,
     choice_sets,
     num_iterations,
-    X,
     dr = 0.1,
-    drbeta = 0.1,
-    sigma_mallow = 0.1,
-    sigma_beta = 1.0,
     noise_option = "queue_jump",
     mcmc_pt = c(0.15, 0.15, 0.3, 0.15, 0.25),
     rho_prior = 1/6,
     noise_beta_prior = NULL,  
-    mallow_ua        = NULL, 
     K_prior = 3.0,
     random_seed = 123
 ) {
@@ -48,18 +37,6 @@ mcmc_partial_order_k <- function(
     
     noise_option <- match.arg(noise_option)
     
-    ## -- enforce mutually-exclusive hyper-parameters --------------------------
-    if (noise_option == "queue_jump") {
-        if (is.null(noise_beta_prior))
-            stop("`noise_beta_prior` must be provided when noise_option = 'queue_jump'")
-        if (!is.null(mallow_ua))
-            message("Ignoring `mallow_ua` because queue-jump noise is selected.")
-    } else {                              # mallows_noise
-        if (is.null(mallow_ua))
-            stop("`mallow_ua` must be provided when noise_option = 'mallows_noise'")
-        if (!is.null(noise_beta_prior))
-            message("Ignoring `noise_beta_prior` because Mallows noise is selected.")
-    }
     
     
     # ----------------------------------------------------------------
@@ -80,16 +57,14 @@ mcmc_partial_order_k <- function(
     K <- 1  # Start with K=1 like Python
     Z <- matrix(0, nrow = n, ncol = K)  # Start with zeros like Python
     
-    p <- nrow(X)
-    beta <- rnorm(p, mean = 0, sd = sigma_beta)
-    alpha <- as.vector(t(X) %*% beta)
+
+    alpha <- numeric(n)
     eta <- transform_U_to_eta(Z, alpha)
     h_Z <- generate_partial_order(eta)
     
     # Initialize parameters using proper priors (MATCH PYTHON)
     rho <- sample_rho_prior(rho_prior)
     prob_noise <- sample_noise_prior(noise_beta_prior)
-    mallow_theta <- sample_theta_prior(mallow_ua)
     
     # ----------------------------------------------------------------
     # 2. Prepare Storage for MCMC results
@@ -98,17 +73,15 @@ mcmc_partial_order_k <- function(
     Z_trace <- list()
     h_trace <- list()
     K_trace <- numeric()
-    beta_trace <- list()
+
     update_records <- list()
     
     rho_trace <- numeric()
     prob_noise_trace <- numeric()
-    mallow_theta_trace <- numeric()
     
     proposed_rho_vals <- numeric()
     proposed_prob_noise_vals <- numeric()
-    proposed_mallow_theta_vals <- numeric()
-    proposed_beta_vals <- list()
+
     proposed_Zs <- list()
     acceptance_decisions <- numeric()
     acceptance_rates <- numeric()
@@ -124,8 +97,7 @@ mcmc_partial_order_k <- function(
     rho_pct <- mcmc_pt[1]
     noise_pct <- mcmc_pt[2]
     U_pct <- mcmc_pt[3]
-    beta_pct <- mcmc_pt[4]
-    K_pct <- mcmc_pt[5]
+    K_pct <- mcmc_pt[4]
     
     llk_current <- -Inf
     llk_prime <- -Inf
@@ -145,7 +117,7 @@ mcmc_partial_order_k <- function(
         # Calculate current likelihood (LIKE PYTHON)
         llk_current <- calculate_log_likelihood(
             Z, h_Z, observed_orders_idx, choice_sets,
-            item_to_index, prob_noise, mallow_theta, noise_option
+            item_to_index, prob_noise, noise_option
         )
         
         # ---- A) Update rho (MATCH PYTHON EXACTLY) ----
@@ -173,36 +145,7 @@ mcmc_partial_order_k <- function(
         }
             else if (r < (rho_pct + noise_pct)) {
             update_category <- "noise"
-            
-            if (noise_option == "mallows_noise") {
-                epsilon <- rnorm(1, 0, 1)
-                mallow_theta_prime <- mallow_theta * exp(sigma_mallow * epsilon)
-                
-                log_prior_current <- log_theta_prior(mallow_theta, mallow_ua)
-                log_prior_proposed <- log_theta_prior(mallow_theta_prime, mallow_ua)
-                
-                llk_prime <- calculate_log_likelihood(
-                    Z, h_Z, observed_orders_idx, choice_sets, item_to_index,
-                    prob_noise, mallow_theta_prime, noise_option
-                )
-                
-                log_acceptance_ratio <- (log_prior_proposed + llk_prime) - 
-                                     (log_prior_current + llk_current) + 
-                                     log(mallow_theta / mallow_theta_prime)  # MATCH PYTHON
-                
-                acceptance_probability <- min(1.0, exp(log_acceptance_ratio))
-                if (runif(1) < acceptance_probability) {
-                    mallow_theta <- mallow_theta_prime
-                    num_acceptances <- num_acceptances + 1
-                    acceptance_decisions <- c(acceptance_decisions, 1)
-                    accepted_this_iter <- TRUE
-                    llk_current <- llk_prime
-                } else {
-                    acceptance_decisions <- c(acceptance_decisions, 0)
-                }
-                proposed_mallow_theta_vals <- c(proposed_mallow_theta_vals, mallow_theta_prime)
-                
-            } else if (noise_option == "queue_jump") {
+             if (noise_option == "queue_jump") {
                 prob_noise_prime <- sample_noise_prior(noise_beta_prior)
                 
                 log_prior_current <- log_noise_prior(prob_noise, noise_beta_prior)
@@ -210,7 +153,7 @@ mcmc_partial_order_k <- function(
                 
                 llk_prime <- calculate_log_likelihood(
                     Z, h_Z, observed_orders_idx, choice_sets, item_to_index,
-                    prob_noise_prime, mallow_theta, noise_option
+                    prob_noise_prime, noise_option
                 )
                 
                 # MATCH PYTHON: only likelihood ratio for queue jump
@@ -250,7 +193,7 @@ mcmc_partial_order_k <- function(
             
             llk_prime <- calculate_log_likelihood(
                 Z_prime, h_Z_prime, observed_orders_idx, choice_sets, item_to_index,
-                prob_noise, mallow_theta, noise_option
+                prob_noise,  noise_option
             )
             
             log_acceptance_ratio <- (log_prior_proposed + llk_prime) - (log_prior_current + llk_current)
@@ -267,41 +210,6 @@ mcmc_partial_order_k <- function(
                 acceptance_decisions <- c(acceptance_decisions, 0)
             }
             proposed_Zs <- append(proposed_Zs, list(Z_prime))
-            
-        # ---- D) Update beta (MATCH PYTHON EXACTLY) ----
-        } else if (r <= (rho_pct + noise_pct + U_pct + beta_pct)) {
-            update_category <- "beta"
-            j <- ((iteration - 1) %% p) + 1  # MATCH PYTHON: cycle through components
-            epsilon <- rnorm(1, 0, drbeta * sigma_beta)  # MATCH PYTHON scaling
-            beta_prime <- beta
-            beta_prime[j] <- beta_prime[j] + epsilon
-            alpha_prime <- as.vector(t(X) %*% beta_prime)
-            eta_prime <- transform_U_to_eta(Z, alpha_prime)
-            h_Z_prime <- generate_partial_order(eta_prime)
-            
-            lp_current <- log_beta_prior(beta, sigma_beta)
-            lp_proposed <- log_beta_prior(beta_prime, sigma_beta)
-            
-            llk_prime <- calculate_log_likelihood(
-                Z, h_Z_prime, observed_orders_idx, choice_sets, item_to_index,
-                prob_noise, mallow_theta, noise_option
-            )
-            
-            log_acceptance_ratio <- (lp_proposed + llk_prime) - (lp_current + llk_current)
-            acceptance_probability <- min(1.0, exp(log_acceptance_ratio))
-            
-            if (runif(1) < acceptance_probability) {
-                beta <- beta_prime
-                alpha <- alpha_prime
-                h_Z <- h_Z_prime
-                num_acceptances <- num_acceptances + 1
-                acceptance_decisions <- c(acceptance_decisions, 1)
-                accepted_this_iter <- TRUE
-                llk_current <- llk_prime
-            } else {
-                acceptance_decisions <- c(acceptance_decisions, 0)
-            }
-            proposed_beta_vals <- append(proposed_beta_vals, list(beta_prime))
             
         # ---- E) Update K (Reversible Jump) - MATCH PYTHON EXACTLY ----
         } else {
@@ -340,7 +248,7 @@ mcmc_partial_order_k <- function(
                 
                 llk_prime <- calculate_log_likelihood(
                     Z_prime, h_Z_prime, observed_orders_idx, choice_sets,
-                    item_to_index, prob_noise, mallow_theta, noise_option
+                    item_to_index, prob_noise, noise_option
                 )
                 
                 # Jacobian terms (MATCH PYTHON EXACTLY)
@@ -377,7 +285,7 @@ mcmc_partial_order_k <- function(
                 
                 llk_prime <- calculate_log_likelihood(
                     Z_prime, h_Z_prime, observed_orders_idx, choice_sets,
-                    item_to_index, prob_noise, mallow_theta, noise_option
+                    item_to_index, prob_noise, noise_option
                 )
                 
                 # Jacobian terms for death move
@@ -407,10 +315,8 @@ mcmc_partial_order_k <- function(
             Z_trace <- append(Z_trace, list(Z))
             h_trace <- append(h_trace, list(h_Z))
             K_trace <- c(K_trace, K)
-            beta_trace <- append(beta_trace, list(beta))
             rho_trace <- c(rho_trace, rho)
             prob_noise_trace <- c(prob_noise_trace, prob_noise)
-            mallow_theta_trace <- c(mallow_theta_trace, mallow_theta)
             update_records <- append(update_records, list(c(iteration, update_category, accepted_this_iter)))
         }
         
@@ -441,16 +347,12 @@ mcmc_partial_order_k <- function(
         Z_trace = Z_trace,
         h_trace = h_trace,
         K_trace = K_trace,
-        beta_trace = beta_trace,
         index_to_item = index_to_item,
         item_to_index = item_to_index,
         rho_trace = rho_trace,
         prob_noise_trace = prob_noise_trace,
-        mallow_theta_trace = mallow_theta_trace,
         proposed_rho_vals = proposed_rho_vals,
         proposed_prob_noise_vals = proposed_prob_noise_vals,
-        proposed_mallow_theta_vals = proposed_mallow_theta_vals,
-        proposed_beta_vals = proposed_beta_vals,
         proposed_Zs = proposed_Zs,
         acceptance_rates = acceptance_rates,
         acceptance_decisions = acceptance_decisions,
@@ -461,9 +363,7 @@ mcmc_partial_order_k <- function(
         final_h = h_Z,
         final_Z = Z,
         final_K = K,
-        final_beta = beta,
         final_rho = rho,
-        final_prob_noise = prob_noise,
-        final_mallow_theta = mallow_theta
+        final_prob_noise = prob_noise
     ))
 } 

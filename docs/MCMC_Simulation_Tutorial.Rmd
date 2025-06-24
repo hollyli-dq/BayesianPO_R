@@ -123,6 +123,11 @@ rho_true <- 0.9
 
 # design matrix  X  of size p × n  (independent standard-normal entries)
 X <- matrix(rnorm(p * n), nrow = p, ncol = n)
+
+```
+
+```{r}
+X
 ```
 
 ## Generate Synthetic Partial Order

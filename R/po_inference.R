@@ -47,52 +47,24 @@ run_inference <- function(data, config, use_rj_mcmc = FALSE) {
         config$mcmc$update_probabilities$rho,
         config$mcmc$update_probabilities$noise,
         config$mcmc$update_probabilities$U,
-        config$mcmc$update_probabilities$beta,
         config$mcmc$update_probabilities$K
       )
     } else {
       mcmc_pt <- c(
         config$mcmc$update_probabilities$rho,
         config$mcmc$update_probabilities$noise,
-        config$mcmc$update_probabilities$U,
-        config$mcmc$update_probabilities$beta
+        config$mcmc$update_probabilities$U
       )
     }
     
     dr <- config$rho$dr
-    drbeta <- config$mcmc$drbeta
     noise_option <- config$noise$noise_option
-    sigma_mallow <- config$noise$sigma_mallow
-    sigma_beta <- config$mcmc$sigma_beta
     
     # Get prior parameters
     rho_prior <- config$prior$rho_prior
     noise_beta_prior <- config$prior$noise_beta_prior
-    mallow_ua <- config$prior$mallow_ua
+
     
-    # Get covariate effects - handle JSON conversion properly
-    beta_true <- if (!is.null(data$beta_true)) {
-      if (is.list(data$beta_true)) unlist(data$beta_true) else data$beta_true
-    } else {
-      rep(0, config$covariates$p)
-    }
-    
-    X_data <- if (!is.null(data$X)) {
-      if (is.list(data$X)) {
-        # Convert list of lists to matrix
-        do.call(rbind, lapply(data$X, function(x) if (is.list(x)) unlist(x) else x))
-      } else {
-        as.matrix(data$X)
-      }
-    } else {
-      matrix(0, nrow = config$covariates$p, ncol = parameters$n)
-    }
-    
-    # Ensure X is in the correct format (p x n)
-    X <- as.matrix(X_data)
-    if (nrow(X) != config$covariates$p) {
-      stop(paste("X matrix has", nrow(X), "rows but expected", config$covariates$p))
-    }
     
     # Run MCMC simulation
     if (use_rj_mcmc) {
@@ -102,16 +74,11 @@ run_inference <- function(data, config, use_rj_mcmc = FALSE) {
         observed_orders = observed_orders,
         choice_sets = choice_sets,
         num_iterations = num_iterations,
-        X = X,
         dr = dr,
-        drbeta = drbeta,
-        sigma_mallow = sigma_mallow,
-        sigma_beta = sigma_beta,
         noise_option = noise_option,
         mcmc_pt = mcmc_pt,
         rho_prior = rho_prior,
         noise_beta_prior = noise_beta_prior,
-        mallow_ua = mallow_ua,
         K_prior = K_prior,
         random_seed = config$mcmc$random_seed
       )
@@ -122,16 +89,11 @@ run_inference <- function(data, config, use_rj_mcmc = FALSE) {
         choice_sets = choice_sets,
         num_iterations = num_iterations,
         K = K,
-        X = X,
         dr = dr,
-        drbeta = drbeta,
-        sigma_mallow = sigma_mallow,
-        sigma_beta = sigma_beta,
         noise_option = noise_option,
         mcmc_pt = mcmc_pt,
         rho_prior = rho_prior,
         noise_beta_prior = noise_beta_prior,
-        mallow_ua = mallow_ua,
         random_seed = config$mcmc$random_seed
       )
     }
@@ -184,7 +146,6 @@ run_inference <- function(data, config, use_rj_mcmc = FALSE) {
       mcmc_results$Z <- matrix(0, nrow = parameters$n, ncol = K)
     }
     
-    mcmc_results$beta <- beta_true
     
     if (!is.null(mcmc_results$rho_trace) && length(mcmc_results$rho_trace) > 0) {
       mcmc_results$rho <- mcmc_results$rho_trace[length(mcmc_results$rho_trace)]
@@ -198,14 +159,9 @@ run_inference <- function(data, config, use_rj_mcmc = FALSE) {
       mcmc_results$prob_noise <- 0.0
     }
     
-    if (!is.null(mcmc_results$mallow_theta_trace) && length(mcmc_results$mallow_theta_trace) > 0) {
-      mcmc_results$mallow_theta <- mcmc_results$mallow_theta_trace[length(mcmc_results$mallow_theta_trace)]
-    } else {
-      mcmc_results$mallow_theta <- 1.0
-    }
     
     # Package trace information
-    trace_keys <- c('Z_trace', 'h_trace', 'rho_trace', 'prob_noise_trace', 'mallow_theta_trace')
+    trace_keys <- c('Z_trace', 'h_trace', 'rho_trace', 'prob_noise_trace')
     if (use_rj_mcmc) {
       trace_keys <- c(trace_keys, 'K_trace')
     }

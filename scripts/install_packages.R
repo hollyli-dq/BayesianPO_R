@@ -17,8 +17,7 @@ optional_packages <- c(
   "tools",       # File path utilities
   "stats",       # Statistical functions
   "utils",       # Utility functions
-  "grDevices",   # Graphics devices
-  "graphics"     # Base graphics
+  "grDevices"   # Graphics devices
 )
 
 cat("Required packages:\n")

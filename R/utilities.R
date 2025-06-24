@@ -528,27 +528,6 @@ sample_K_prior <- function(K_prior) {
   }
 }
 
-#' Log prior for Mallows theta (exponential)
-#' 
-#' @param theta Mallows parameter
-#' @param ua Prior parameter
-#' @return Log prior density
-#' @export
-log_theta_prior <- function(theta, ua) {
-  if (theta <= 0) {
-    return(-Inf)
-  }
-  return(dexp(theta, rate = ua, log = TRUE))
-}
-
-#' Sample from Mallows theta prior
-#' 
-#' @param ua Prior parameter
-#' @return Sample from theta prior
-#' @export
-sample_theta_prior <- function(ua) {
-  return(rexp(1, rate = ua))
-}
 
 # ============================================================================
 # DATA GENERATION FUNCTIONS
@@ -561,14 +540,12 @@ sample_theta_prior <- function(ua) {
 #' @param K Number of latent dimensions
 #' @param rho_true True correlation parameter
 #' @param prob_noise_true True noise probability
-#' @param beta_true True beta coefficients (optional)
 #' @param X Design matrix (optional)
 #' @param random_seed Random seed
 #' @return List containing synthetic data
 #' @export
 generate_synthetic_data <- function(n_items = 6, n_observations = 50,     min_sub =2 ,K = 3, 
                                    rho_true = 0.8, prob_noise_true = 0.1, 
-                                   beta_true = NULL, X = NULL,
                                    random_seed = 123) {
   set.seed(random_seed)
   
@@ -576,14 +553,8 @@ generate_synthetic_data <- function(n_items = 6, n_observations = 50,     min_su
   Sigma_true <- build_sigma_rho(K, rho_true)
   Z_true <- rmvnorm(n_items, mean = rep(0, K), sigma = Sigma_true)
   
-  # Generate covariates and effects
-  if (is.null(X)) {
-    X <- matrix(rnorm(n_items * 2), nrow = n_items, ncol = 2)
-  }
-  if (is.null(beta_true)) {
-    beta_true <- c(0.5, -0.3)
-  }
-  alpha_true <- as.vector(X %*% beta_true)
+
+  alpha_true <-numeric(n)
   
   # Transform to eta and generate true partial order
   eta_true <- transform_U_to_eta(Z_true, alpha_true)
@@ -639,15 +610,11 @@ generate_synthetic_data <- function(n_items = 6, n_observations = 50,     min_su
     items = items,
     h_true = h_true,
     Z_true = Z_true,
-    X = X,
-    beta_true = beta_true,
-    alpha_true = alpha_true,
     rho_true = rho_true,
     prob_noise_true = prob_noise_true,
     parameters = list(
       rho_true = rho_true,
-      prob_noise_true = prob_noise_true,
-      beta_true = beta_true
+      prob_noise_true = prob_noise_true
     )
   ))
 }

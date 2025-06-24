@@ -40,7 +40,6 @@ generate_data <- function(config) {
     rho_prior <- config$prior$rho_prior  # Prior parameter for correlation
     noise_option <- config$noise$noise_option  # Noise model specification
     noise_beta_prior<-config$prior$noise_beta_prior
- #   mallow_ua <- config$prior$mallow_ua  # Mallows model parameter
     prob_noise_true<- rbeta(1, 1,  noise_beta_prior)
     
     items <- 0:(n-1)  # Create list of item indices to represent the items
@@ -48,17 +47,10 @@ generate_data <- function(config) {
     # 3. Generate true correlation parameter from prior
     rho_true <- rbeta(1, 1, rho_prior)  # Sample from Beta(1, rho_prior) distribution
     cat("True correlation parameter (rho):", sprintf("%.4f", rho_true), "\n")
-    
-    # 4. Set up covariates and regression parameters
-    # X: p × n design matrix (p is number of covariates)
-    # β: p × 1 vector of regression coefficients
-    p <- config$covariates$p  # Number of covariates
-    beta_true <- config$covariates$beta_true   # True regression coefficients
-    X <- matrix(rnorm(p * n), nrow = p, ncol = n)  # Example design matrix
-    
+
     # 5. Compute assessor-specific effects
     # α = X^T β is an n × 1 vector of assessor effects
-    alpha <- as.vector(t(X) %*% beta_true)
+    alpha <- numeric(n)
     cat("\nThe covariates effects (alpha):\n")
     print(alpha)
     
@@ -74,15 +66,7 @@ generate_data <- function(config) {
     eta <- transform_U_to_eta(U, alpha)
     cat("\nAdjusted latent positions (eta):\n")
     print(eta)
-    
-    cat("\nRegression Information:\n")
-    cat("Design Matrix (X):\n")
-    print(X)
-    cat("\nTrue Regression Coefficients (beta):\n")
-    print(beta_true)
-    cat("\nCovariates Effects (alpha = X^T β):\n")
-    print(alpha)
-    
+
     # 8. Generate partial order from adjusted latent positions
     # First generate the full partial order
     h <- generate_partial_order(eta)
@@ -143,7 +127,6 @@ generate_data <- function(config) {
         prob_noise_true =  prob_noise_true
       ),
       true_partial_order = h_true,  # True partial order matrix
-      beta_true = beta_true,  # True covariate effects
       X = X,  # Covariate matrix
       U_true = U,  # True latent positions
       alpha_true = alpha,  # True covariate effects
