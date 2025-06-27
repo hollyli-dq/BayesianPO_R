@@ -1,0 +1,319 @@
+---
+title: "MCMC Simulation for Partial Order Inference"
+author: "BayesianPO Package"
+output:
+  #pdf_document:
+  #  toc: true
+  html_document: default
+  #  toc: true
+  #  toc_float: true
+  #  code_folding: show
+  #  theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+
+## (1) Setup and Installation
+
+```{r load-packages}
+
+# Load the BayesianPO package
+source("../R/utilities.R")
+source("../R/mcmc.R")
+source("../R/mcmc_rj.R")  # Load reversible jump MCMC
+source("../R/analysis.R")
+
+library(MASS)
+library(mvtnorm)
+library(ggplot2)
+library(igraph)
+
+```
+
+## (1) Data Generation
+
+```{r}
+X0 = rbind(c(1,2,3,4,5),c(1,3,2,4,5),c(1,2,4,3,5),c(1,2,4,3,5))
+X = X0[sample(4,20,replace='T'),]
+X[sample(20,5),4:5]=0
+
+dada <- mx2list(X)
+observed_orders = dada$observed_orders
+choice_sets = dada$choice_sets
+items <- dada$items
+K <- ceiling(length(items)/2)
+rng_seed = 1234
+```
+
+## (2) Standard MCMC Implementation
+
+```{r fixed-mcmc}
+# MCMC parameters
+fixed_cfg <- list(
+  iters            = 20000,                      # total MH iterations
+  dr               = 0.10,                      # rho step
+  rho_prior        = 1/6,                   # rho prior parameter
+  noise_option     = "queue_jump",              # noise type
+  noise_beta_prior = 9                        # queue-jump prob prior 
+)
+
+# 2.  Common arguments
+args_fix <- list(
+  observed_orders = observed_orders,
+  choice_sets     = choice_sets,
+  num_iterations  = fixed_cfg$iters,
+  K               = K,
+  dr              = fixed_cfg$dr,
+  rho_prior       = fixed_cfg$rho_prior,
+  noise_option    = "queue_jump",
+  noise_beta_prior = fixed_cfg$noise_beta_prior,
+  random_seed     = rng_seed
+)
+
+# 3.  Run the sampler
+mcmc_fix <- do.call(mcmc_partial_order, args_fix)
+
+```
+
+## (6) Reversible Jump MCMC Implementation
+
+The reversible jump MCMC allows the number of latent dimensions K to
+vary during sampling, automatically determining the optimal model
+complexity.
+
+```{r rj-mcmc}
+## ---- rj-mcmc -------------------------------------------------
+# 1.  Configuration list ------------------------------------------------------
+rj_cfg <- list(
+  iters            = 20000, 
+  dr               = 0.10,                      # rho step
+  K_prior          = 3.0,                       # Poisson(λ) prior for K
+  noise_option     = "queue_jump",              
+  noise_beta_prior = 9,                         # used **only** for queue-jump
+  rho_prior        = 1/6
+)
+
+args_common <- list(
+  observed_orders = observed_orders,
+  choice_sets     = choice_sets,
+  num_iterations  = rj_cfg$iters,
+  dr              = rj_cfg$dr,
+  rho_prior       = rj_cfg$rho_prior,
+  K_prior         = rj_cfg$K_prior,
+  noise_option    = "queue_jump",
+  noise_beta_prior = rj_cfg$noise_beta_prior,
+  random_seed     = 42
+)
+
+# 2.  Run the sampler 
+rj_results <- do.call(mcmc_partial_order_k, args_common)
+
+```
+
+## (7) Results and Diagnosics
+
+```{r convergence, fig.width=12, fig.height=8}
+# Plot log-likelihood traces
+par(mfrow = c(1, 2))
+
+# Check if we have valid data before plotting
+plot(mcmc_fix$log_likelihood_trace, type = "l", 
+       main = "Log-Likelihood (Fixed K)", xlab = "Iteration", ylab = "Log-Likelihood")
+
+plot(rj_results$log_likelihood_trace, type = "l", 
+       main = "Log-Likelihood (RJ-MCMC)", xlab = "Iteration", ylab = "Log-Likelihood")
+```
+
+We could select the burn-in period based on this.
+
+```{r}
+burn_in<-100
+```
+
+## (8) Parameter Estimation Comparison
+
+```{r parameter-comparison}
+
+# Fixed dimension estimates
+rho_est_fixed <- mean(mcmc_fix$rho_trace[burn_in:length(mcmc_fix$rho_trace)])
+
+# Reversible jump estimates  
+rho_est_rj <- mean(rj_results$rho_trace[burn_in:length(rj_results$rho_trace)])
+K_est_rj <- round(mean(rj_results$K_trace[burn_in:length(rj_results$K_trace)]))
+
+# Create comparison table
+comparison_df <- data.frame(
+  Parameter = c("rho", "K"),
+  Fixed_MCMC = c(rho_est_fixed,K),
+  RJ_MCMC = c(rho_est_rj,  K_est_rj)
+)
+
+print(comparison_df)
+```
+
+## (9) Trace Plots
+
+```{r trace-plots, fig.width=10, fig.height=8}
+# Create comprehensive trace plots with prior/posterior comparisons
+
+config <- list(
+  prior = list(
+    rho_prior = fixed_cfg$rho_prior,
+    noise_beta_prior =  fixed_cfg$noise_beta_prior
+  ),
+  noise = list(
+    noise_option = "queue_jump"
+  )
+)
+
+plot_mcmc_results(mcmc_fix, 
+                 config = config,
+                 burn_in = 2)
+```
+
+## (10) RJ-MCMC Trace Plots
+
+```{r rj-trace-plots, fig.width=12, fig.height=12}
+# Create comprehensive trace plots for RJ-MCMC with K dimension
+rj_config <- list(
+  prior = list(
+    rho_prior = rj_cfg$rho_prior,
+    noise_beta_prior = rj_cfg$noise_beta_prior,
+    K_prior = rj_cfg$K_prior
+  ),
+  noise = list(
+    noise_option = "queue_jump"
+  )
+)
+
+plot_mcmc_results(rj_results, 
+                 config = rj_config,
+                 burn_in = 2)
+```
+
+
+## (11) Dimension Selection Analysis
+
+```{r dimension-analysis, fig.width=10, fig.height=6}
+# Analyze K posterior distribution
+K_posterior <- table(rj_results$K_trace[burn_in:length(rj_results$K_trace)])
+K_probs <- K_posterior / sum(K_posterior)
+
+# Plot K posterior
+par(mfrow = c(1, 1))
+
+barplot(K_probs, main = "Posterior Distribution of K", 
+        xlab = "Number of Dimensions (K)", ylab = "Posterior Probability",
+        col = "lightblue", border = "darkblue")
+abline(v = K + 0.5, col = "red", lty = 2, lwd = 2)
+
+```
+
+
+# Model Comparison and Validation
+
+## (1) Posterior Predictive Checks
+
+```{r posterior-predictive}
+# Calculate burn-in index (convert to trace index)
+
+threshold <- 0.5
+
+# Extract post-burn-in partial order traces
+h_trace_fixed_post_burnin <- mcmc_fix$h_trace[burn_in:length(mcmc_fix$h_trace)]
+
+h_trace_rj_post_burnin <- rj_results$h_trace[burn_in:length(rj_results$h_trace)]
+
+# Compute posterior mean partial orders
+cat("Computing posterior mean partial orders...\n")
+
+# Fixed K MCMC: Average across all post-burn-in iterations
+if (length(h_trace_fixed_post_burnin) > 0) {
+  # Convert list of matrices to 3D array for easier averaging
+  h_array_fixed <- array(0, dim = c(nrow(h_trace_fixed_post_burnin[[1]]), 
+                                   ncol(h_trace_fixed_post_burnin[[1]]), 
+                                   length(h_trace_fixed_post_burnin)))
+  
+  for (i in seq_along(h_trace_fixed_post_burnin)) {
+    h_array_fixed[,,i] <- h_trace_fixed_post_burnin[[i]]
+  }
+  
+  # Compute mean and apply threshold
+  mean_h_fixed <- apply(h_array_fixed, c(1,2), mean)
+  final_h_fixed <- (mean_h_fixed >= threshold) * 1
+  
+  # Apply transitive reduction to get minimal representation
+  final_h_fixed <- transitive_reduction(final_h_fixed)
+  
+  cat("Fixed K MCMC: Averaged", length(h_trace_fixed_post_burnin), "post-burn-in samples\n")
+} else {
+  final_h_fixed <- matrix(0, nrow = nrow(h_true), ncol = ncol(h_true))
+  cat("Warning: No post-burn-in samples for Fixed K MCMC\n")
+}
+
+# RJ-MCMC: Average across all post-burn-in iterations
+if (length(h_trace_rj_post_burnin) > 0) {
+  # Convert list of matrices to 3D array for easier averaging
+  h_array_rj <- array(0, dim = c(nrow(h_trace_rj_post_burnin[[1]]), 
+                                ncol(h_trace_rj_post_burnin[[1]]), 
+                                length(h_trace_rj_post_burnin)))
+  
+  for (i in seq_along(h_trace_rj_post_burnin)) {
+    h_array_rj[,,i] <- h_trace_rj_post_burnin[[i]]
+  }
+  
+  # Compute mean and apply threshold
+  mean_h_rj <- apply(h_array_rj, c(1,2), mean)
+  final_h_rj <- (mean_h_rj >= threshold) * 1
+  
+  # Apply transitive reduction to get minimal representation
+  final_h_rj <- transitive_reduction(final_h_rj)
+  
+  cat("RJ-MCMC: Averaged", length(h_trace_rj_post_burnin), "post-burn-in samples\n")
+} else {
+  final_h_rj <- matrix(0, nrow = nrow(h_true), ncol = ncol(h_true))
+  cat("Warning: No post-burn-in samples for RJ-MCMC\n")
+}
+
+```
+
+## (2) Visualize Estimated Partial Orders
+
+```{r plot-estimates, fig.width=15, fig.height=5}
+par(mfrow = c(1, 2))
+
+plot_partial_order(
+  final_h_fixed, items, title = "Fixed K MCMC Estimate\n(Posterior Mean)",
+  vertex_size   = 38,
+  edge_arrow_size = 0.6,
+  label_cex     = 1.3,  # even bigger text
+  frame_width   = 2.3   # bolder outlines
+)
+
+
+plot_partial_order(
+  final_h_rj, items, title = "RJ-MCMC Estimate\n(Posterior Mean)",
+  vertex_size   = 38,
+  edge_arrow_size = 0.6,
+  label_cex     = 1.3,  # even bigger text
+  frame_width   = 2.3   # bolder outlines
+)
+
+```
+
+
+## References
+
+-   Nicholls, G. K., et al. (2024). Bayesian inference for partial
+    orders. *arXiv preprint arXiv:2212.05524*.
+-   Green, P. J. (1995). Reversible jump Markov chain Monte Carlo
+    computation and Bayesian model determination. *Biometrika*, 82(4),
+    711-732.
+
+------------------------------------------------------------------------
+
+
