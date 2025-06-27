@@ -63,28 +63,6 @@ BayesianPO/
 source("scripts/install_packages.R")
 ```
 
-## 💻 Usage
-
-### R Functions
-
-``` r
-# Load functions
-source("R/data_generator.R")
-source("R/po_inference.R")
-
-# Generate data
-config <- load_config("config/data_generator_config.yaml")
-data <- generate_data(config)
-
-# Run inference
-mcmc_config <- load_config("config/mcmc_config.yaml")
-results <- run_inference(data, mcmc_config, use_rj_mcmc = TRUE)
-
-# Save and analyze results
-save_results(results, "results", "my_analysis")
-generate_plots(results, data, mcmc_config, "results", "my_analysis")
-```
-
 ## 🔬 Methods
 
 ### Noise Models
@@ -103,35 +81,6 @@ generate_plots(results, data, mcmc_config, "results", "my_analysis")
 -   Comprehensive diagnostics and plotting
 -   JSON-based data interchange
 
-## ⚙️ Configuration
-
-### Data Generation Config (`config/data_generator_config.yaml`)
-
-``` yaml
-generation:
-  n: 5                    # Number of items
-  N: 50                   # Number of observations
-  prob_noise_true: 0.1    # Noise probability
-
-covariates:
-  p: 2                    # Number of covariates
-  beta_true: [0.5, -0.3]  # True coefficients
-```
-
-### MCMC Config (`config/mcmc_config.yaml`)
-
-``` yaml
-mcmc:
-  num_iterations: 1000    # MCMC iterations
-  random_seed: 42         # Random seed
-  
-update_probabilities:
-  rho: 0.2               # Update probabilities
-  noise: 0.2
-  U: 0.4
-  beta: 0.2
-  K: 0.0                 # Set to 0.1+ for RJ-MCMC
-```
 
 ## 🚀 Getting Started
 
