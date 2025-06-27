@@ -3,17 +3,13 @@ title: "MCMC Simulation for Partial Order Inference"
 author: "BayesianPO Package"
 date: "`r Sys.Date()`"
 output:
-  pdf_document:
-    toc: true
-  html_document:
-    toc: true
-    toc_float: true
-    code_folding: show
-    theme: flatly
-subtitle: Bayesian Inference with Reversible Jump MCMC
-editor_options:
-  markdown:
-    wrap: 72
+  #pdf_document:
+  #  toc: true
+  html_document: default
+  #  toc: true
+  #  toc_float: true
+  #  code_folding: show
+  #  theme: flatly
 ---
 
 ```{r setup, include=FALSE}
@@ -25,83 +21,76 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 This tutorial demonstrates the Metropolis-Hastings Markov Chain Monte
 Carlo (MH-MCMC) process applied to partial orders, implementing the
 methodology described in [Nicholls et al.
-(2024)](https://arxiv.org/abs/2212.05524) using the **BayesianPO** R
-package.
+(2024)](https://arxiv.org/abs/2212.05524).
 
 The tutorial covers two main implementations:
 
 1.  **Fixed Dimension MCMC**: Standard MCMC with fixed number of latent
-    dimensions
+    dimensions $K$
 2.  **Reversible Jump MCMC**: Variable dimension sampling that
-    automatically determines optimal K
+    automatically inference for $K$
 
-## Key Features
-
--   **Flexible Noise Models**: Support for queue-jump and Mallows noise
--   **Covariate Integration**: Incorporation of external covariates\
--   **Reversible Jump MCMC**: Automatic dimension selection
--   **Convergence Diagnostics**: Comprehensive monitoring tools
-
-# Mathematical Background
+The queue jumping noise model is implemented.
 
 ## Partial Order Model
 
-For α and Σ_ρ defined above, if we take:
+The $K$-dimensional latent variable $U_{j,:}$ for the $j$-actor is
 
-$$U_{j,:} \sim N(0, \Sigma_\rho), \text{ independent for each } j \in M$$
-$$\eta_{j,:} = G^{-1}(\Phi(U_{j,:})) + \alpha_j \mathbf{1}_K^T$$
-$$y \sim p(\cdot|h(\eta(U, \beta)))$$
+$$U_{j,:} \sim N(0, \Sigma_\rho), \text{ independent for each } j \in [1,...,M]$$
+and determines a partial order $y$
+$$y \sim p(\cdot|h(U))$$
 
-then $h(\eta_{:,k}) \sim PL(\alpha; M)$ for each $k = 1, \ldots, K$.
 
 ## Queue Jump Error Model
 
 Before the $i$-th entry $(y_i)$ is chosen: - There are $m - i + 1$
 elements remaining $(y_{i:m})$ - With probability $p$: $y_i$ is chosen
 randomly (ignoring order constraints) - With probability $(1-p)$: $y_i$
-is the maximal element in a random linear extension
+is compatible to the PO $h$.
 
 The probability of a sequence $y_{1:m}$ given poset $h$ and noise
 parameter $p$ is:
 
-$$p_s(y_{1:m}|h, p) = \prod_{i=1}^{m-1} q(y_{i:m}|h[y_{i:m}], p)$$
+$$p(y_{1:m}|h, p) = \prod_{i=1}^{m-1} \frac{p}{m-j+1} + (1-p)\dfrac{|L_{y_i}[h(y_{1:m})]|}{|L[h(y_{1:m})]|}
+ \,. $$
 
-where:
+and the likelihood is $exp(-l(h,p; \{Y_i\}^N_{i=1} ))=\prod^N_{i=1} p(Y_i|h, p) $ where $Y_i=y_{i,1:m_i}$. 
 
-$$q(y_{i:m}|h[y_{i:m}], p) = \frac{p}{m-j+1} + (1-p)q_{y_{i:m}}(y_i|h[y_{i:m}])$$
+### MCMC simulation when $K$ is fixed
 
-## Reversible Jump MCMC for Dimension Selection
+\[ \pi(\rho|U) \propto \pi(U|\rho)\pi(\rho)\, ,\] \[\pi(p|h,\{Y_i\}^N_{i=1}) \propto \exp(-l(h,p;\{Y_i\}^N_{i=1})) \pi(p) \,,\]
+\[ \pi(h(U)|p,\{Y_i\}^N_{i=1}) \propto \exp(-l(h,p;\{Y_i\}^N_{i=1}))\pi(U|\rho) \,. \]
 
-The reversible jump MCMC extends the standard algorithm by allowing the
-dimension $K$ to vary. The key moves are:
+### RJ-MCMC simulation when $K$ is variable
+
+The reversible jump MCMC extends the standard algorithm by allowing the dimension $K$ to vary. The key moves are:
 
 -   **Birth move**: $K \rightarrow K+1$ by adding a new latent dimension
 -   **Death move**: $K \rightarrow K-1$ by removing a latent dimension
 
-The acceptance probability includes: - Prior ratio:
-$\frac{p(K')}{p(K)}$ - Likelihood ratio: $\frac{p(y|K')}{p(y|K)}$ -
-Proposal ratio: $\frac{q(K|K')}{q(K'|K)}$ - Jacobian term for the
-transformation
+\[ \pi(K,h(U)|p,\{Y_i\}^N_{i=1}) \propto \exp(-l(h,p;\{Y_i\}^N_{i=1})) \pi(U|K,\rho) \pi(K) \]
 
-# Setup and Installation
+The Jacobian term for the transformation is 1. 
+
+## (1) Setup and Installation
 
 ```{r load-packages}
 
-source("../scripts/install_packages.R")
+#source("../scripts/install_packages.R")
 # Load the BayesianPO package
 source("../R/utilities.R")
 source("../R/mcmc.R")
 source("../R/mcmc_rj.R")  # Load reversible jump MCMC
 source("../R/analysis.R")
 
+library(MASS)
 library(mvtnorm)
 library(ggplot2)
 library(igraph)
-library(graph)
 
 ```
 
-# Data Generation
+## (2) Data Generation
 
 The configuration
 
@@ -110,17 +99,13 @@ n                <- 5          # number of items
 N                <- 30         # number of total orders
 K                <- 3           # latent dimensions
 min_sub          <- 3  
-rho_prior        <- 0.16667     # prior mean for rho  (Beta(1, (1/ρ₀)–1))
-prob_noise_true  <- 0.10        # queue-jump noise used to *simulate* data
-rng_seed         <- 42          # reproducibility
+prob_noise_true  <- 0.10        # true queue-jump noise probability
+rng_seed         <- 123#42          # reproducibility
 noise_option <-  "queue_jump"
-set.seed(rng_seed)
-
-# draw rho_true from Beta(1, b) with mean = rho_prior
 rho_true <- 0.9
 ```
 
-## Generate Synthetic Partial Order
+## (3) Generate Synthetic Partial Order
 
 ```{r}
 
@@ -140,12 +125,9 @@ items <- synthetic_data$items
 observed_orders <- synthetic_data$observed_orders
 choice_sets <- synthetic_data$choice_sets
 h_true <- synthetic_data$h_true
-
-cat("Generated partial order with", sum(h_true), "direct relationships\n")
-cat("Number of linear extensions:", count_linear_extensions(h_true), "\n")
 ```
 
-## Visualize the True Partial Order
+## (4) Visualize the True Partial Order
 
 ```{r plot-true-po, fig.width=12, fig.height=8}
 
@@ -160,179 +142,114 @@ plot_partial_order(
 
 ```
 
-# Standard MCMC Implementation
+## (5) Standard MCMC Implementation
 
 ```{r fixed-mcmc}
 # MCMC parameters
 fixed_cfg <- list(
   iters            = 10000,                      # total MH iterations
-  mcmc_pt          = c(rho  = 0.30,             # update probabilities
-                       noise = 0.30,
-                       U     = 0.40),
   dr               = 0.10,                      # rho step
-  rho_prior        = 0.16667,
-  noise_option     = "queue_jump",              # or "mallows_noise"
-  noise_beta_prior = 9                        # queue-jump prior (omit for Mallows)
-
+  rho_prior        = 1/6,                   # rho prior parameter
+  noise_option     = "queue_jump",              # noise type
+  noise_beta_prior = 9                        # queue-jump prob prior 
 )
 
-# 2.  Common arguments --------------------------------------------------------
+# 2.  Common arguments
 args_fix <- list(
   observed_orders = observed_orders,
   choice_sets     = choice_sets,
   num_iterations  = fixed_cfg$iters,
   K               = K,
   dr              = fixed_cfg$dr,
-  mcmc_pt         = fixed_cfg$mcmc_pt,
-  rho_prior       = rho_prior,
+  rho_prior       = fixed_cfg$rho_prior,
+  noise_option    = "queue_jump",
+  noise_beta_prior = fixed_cfg$noise_beta_prior,
   random_seed     = rng_seed
 )
 
-
-args_fix$noise_option     <- "queue_jump"
-args_fix$noise_beta_prior <- fixed_cfg$noise_beta_prior 
-
-
-# 4.  Run the sampler ---------------------------------------------------------
+# 3.  Run the sampler
 mcmc_fix <- do.call(mcmc_partial_order, args_fix)
-
-cat(
-  "Fixed-dimension MCMC completed — acceptance rate:",
-  sprintf("%.2f %%", 100 * mcmc_fix$overall_acceptance_rate), "\n"
-)
 
 ```
 
-# Reversible Jump MCMC Implementation
+## (6) Reversible Jump MCMC Implementation
 
 The reversible jump MCMC allows the number of latent dimensions K to
 vary during sampling, automatically determining the optimal model
 complexity.
 
 ```{r rj-mcmc}
-## ---- rj-mcmc ---------------------------------------------------------------
+## ---- rj-mcmc -------------------------------------------------
 # 1.  Configuration list ------------------------------------------------------
 rj_cfg <- list(
-  iters            = 10000,                      # total RJ iterations
-  mcmc_pt          = c(rho  = 0.25,             # update probabilities
-                       noise = 0.25,
-                       U     = 0.30,
-                       K     = 0.20),
+  iters            = 10000, 
   dr               = 0.10,                      # rho step
   K_prior          = 3.0,                       # Poisson(λ) prior for K
   noise_option     = "queue_jump",              # or "mallows_noise"
-  noise_beta_prior = 9                         # used **only** for queue-jump
+  noise_beta_prior = 9,                         # used **only** for queue-jump
+  rho_prior        = 1/6
 )
 
-# 2.  Convenience variables ---------------------------------------------------
-num_it       <- rj_cfg$iters
-mcmc_pt_rj   <- rj_cfg$mcmc_pt
-
-# 3.  Build a single arg-list, then prune priors -----------------------------
 args_common <- list(
   observed_orders = observed_orders,
   choice_sets     = choice_sets,
-  num_iterations  = num_it,
+  num_iterations  = rj_cfg$iters,
   dr              = rj_cfg$dr,
-  mcmc_pt         = mcmc_pt_rj,
-  rho_prior       = rho_prior,
+  rho_prior       = rj_cfg$rho_prior,
   K_prior         = rj_cfg$K_prior,
+  noise_option    = "queue_jump",
+  noise_beta_prior = rj_cfg$noise_beta_prior,
   random_seed     = 42
 )
 
-args_common$noise_option     <- "queue_jump"
-args_common$noise_beta_prior <- fixed_cfg$noise_beta_prior   # keep
-
-# 4.  Run the sampler ---------------------------------------------------------
+# 2.  Run the sampler 
 rj_results <- do.call(mcmc_partial_order_k, args_common)
-
-# 5.  Quick report ------------------------------------------------------------
-cat(sprintf(
-  "Reversible-jump MCMC finished — acceptance rate: %.2f %%\n",
-  100 * rj_results$overall_acceptance_rate))
 
 ```
 
-# Results and Diagnosis
+## (7) Results and Diagnosics
 
 ```{r convergence, fig.width=12, fig.height=8}
 # Plot log-likelihood traces
-par(mfrow = c(2, 2))
+par(mfrow = c(1, 2))
 
 # Check if we have valid data before plotting
-if (length(mcmc_fix$log_likelihood_currents) > 0 && 
-    all(is.finite(mcmc_fix$log_likelihood_currents))) {
-  plot(mcmc_fix$log_likelihood_currents, type = "l", 
+plot(mcmc_fix$log_likelihood_trace, type = "l", 
        main = "Log-Likelihood (Fixed K)", xlab = "Iteration", ylab = "Log-Likelihood")
-} else {
-  plot(1, type = "n", main = "Log-Likelihood (Fixed K) - No Valid Data", 
-       xlab = "Iteration", ylab = "Log-Likelihood")
-}
 
-if (length(rj_results$log_likelihood_currents) > 0 && 
-    all(is.finite(rj_results$log_likelihood_currents))) {
-  plot(rj_results$log_likelihood_currents, type = "l", 
+plot(rj_results$log_likelihood_trace, type = "l", 
        main = "Log-Likelihood (RJ-MCMC)", xlab = "Iteration", ylab = "Log-Likelihood")
-} else {
-  plot(1, type = "n", main = "Log-Likelihood (RJ-MCMC) - No Valid Data", 
-       xlab = "Iteration", ylab = "Log-Likelihood")
-}
-
-# Acceptance rates over time
-if (length(mcmc_fix$acceptance_rates) > 0 && 
-    all(is.finite(mcmc_fix$acceptance_rates))) {
-  plot(mcmc_fix$acceptance_rates, type = "l", 
-       main = "Acceptance Rate (Fixed K)", xlab = "Iteration", ylab = "Acceptance Rate")
-} else {
-  plot(1, type = "n", main = "Acceptance Rate (Fixed K) - No Valid Data", 
-       xlab = "Iteration", ylab = "Acceptance Rate")
-}
-
-if (length(rj_results$acceptance_rates) > 0 && 
-    all(is.finite(rj_results$acceptance_rates))) {
-  plot(rj_results$acceptance_rates, type = "l", 
-       main = "Acceptance Rate (RJ-MCMC)", xlab = "Iteration", ylab = "Acceptance Rate")
-} else {
-  plot(1, type = "n", main = "Acceptance Rate (RJ-MCMC) - No Valid Data", 
-       xlab = "Iteration", ylab = "Acceptance Rate")
-}
-
-par(mfrow = c(1, 1))
 ```
 
 We could select the burn-in period based on this.
 
 ```{r}
-burn_in<-6000
-burn_in_index <- burn_in / 100  # Since we store every 100 iterations
+burn_in<-100
 ```
 
-## Parameter Estimation Comparison
+## (8) Parameter Estimation Comparison
 
 ```{r parameter-comparison}
-# Extract posterior estimates (after burn-in)
-burn_indices <- (burn_in/100 + 1):length(mcmc_fix$rho_trace)
-rj_burn_indices <- (burn_in/100 + 1):length(rj_results$rho_trace)
 
 # Fixed dimension estimates
-rho_est_fixed <- mean(mcmc_fix$rho_trace[burn_indices])
+rho_est_fixed <- mean(mcmc_fix$rho_trace[burn_in:length(mcmc_fix$rho_trace)])
 
 # Reversible jump estimates  
-rho_est_rj <- mean(rj_results$rho_trace[rj_burn_indices])
-K_est_rj <- round(mean(rj_results$K_trace[rj_burn_indices]))
+rho_est_rj <- mean(rj_results$rho_trace[burn_in:length(rj_results$rho_trace)])
+K_est_rj <- round(mean(rj_results$K_trace[burn_in:length(rj_results$K_trace)]))
 
 # Create comparison table
 comparison_df <- data.frame(
   Parameter = c("rho", "K"),
   True_Value = c(rho_true, K),
-  Fixed_MCMC = c(rho_est_fixed, K),
-  RJ_MCMC = c(rho_est_rj, K_est_rj)
+  Fixed_MCMC = c(rho_est_fixed,K),
+  RJ_MCMC = c(rho_est_rj,  K_est_rj)
 )
 
 print(comparison_df)
 ```
 
-## Trace Plots
+## (9) Trace Plots
 
 ```{r trace-plots, fig.width=10, fig.height=8}
 # Create comprehensive trace plots with prior/posterior comparisons
@@ -357,7 +274,7 @@ plot_mcmc_results(mcmc_fix,
                  burn_in = 2)
 ```
 
-## RJ-MCMC Trace Plots
+## (10) RJ-MCMC Trace Plots
 
 ```{r rj-trace-plots, fig.width=12, fig.height=12}
 # Create comprehensive trace plots for RJ-MCMC with K dimension
@@ -389,7 +306,7 @@ mcmc_result_compare_parameter_analysis(
   mcmc_fixed = mcmc_fix,
   mcmc_rj = rj_results,
   param = "rho",
-  burn_in = burn_in_index,
+  burn_in = 0,
   true_value = true_params$rho_true
 )
 
@@ -397,16 +314,16 @@ mcmc_result_compare_parameter_analysis(
   mcmc_fixed = mcmc_fix,
   mcmc_rj = rj_results,
   param = "prob_noise",
-  burn_in = burn_in_index,
+  burn_in = 0,
   true_value = true_params$prob_noise_true
 )
 ```
 
-## Dimension Selection Analysis
+## (11) Dimension Selection Analysis
 
 ```{r dimension-analysis, fig.width=10, fig.height=6}
 # Analyze K posterior distribution
-K_posterior <- table(rj_results$K_trace[rj_burn_indices])
+K_posterior <- table(rj_results$K_trace[burn_in:length(rj_results$K_trace)])
 K_probs <- K_posterior / sum(K_posterior)
 
 # Plot K posterior
@@ -419,34 +336,10 @@ abline(v = K + 0.5, col = "red", lty = 2, lwd = 2)
 
 ```
 
-```{r}
-cat("Posterior mode for K:", names(K_probs)[which.max(K_probs)], "\n")
-cat("Posterior mean for K:", round(mean(rj_results$K_trace[rj_burn_indices]), 2), "\n")
-```
-
-## Update Category Analysis (RJ-MCMC)
-
-```{r update-analysis}
-# Analyze update categories and their acceptance rates
-if ("update_df" %in% names(rj_results)) {
-  update_summary <- aggregate(accepted ~ category, data = rj_results$update_df, 
-                             FUN = function(x) c(count = length(x), 
-                                                accepted = sum(x), 
-                                                rate = mean(x)))
-  
-  # Plot update acceptance rates by category
-  category_rates <- aggregate(accepted ~ category, data = rj_results$update_df, mean)
-  
-  barplot(category_rates$accepted, names.arg = category_rates$category,
-          main = "Acceptance Rates by Update Type", 
-          ylab = "Acceptance Rate", xlab = "Update Category",
-          col = rainbow(nrow(category_rates)))
-}
-```
 
 # Model Comparison and Validation
 
-## Posterior Predictive Checks
+## (1) Posterior Predictive Checks
 
 ```{r posterior-predictive}
 # Calculate burn-in index (convert to trace index)
@@ -454,8 +347,8 @@ if ("update_df" %in% names(rj_results)) {
 threshold <- 0.5
 
 # Extract post-burn-in partial order traces
-h_trace_fixed_post_burnin <- mcmc_fix$h_trace[(burn_in_index + 1):length(mcmc_fix$h_trace)]
-h_trace_rj_post_burnin <- rj_results$h_trace[(burn_in_index + 1):length(rj_results$h_trace)]
+h_trace_fixed_post_burnin <- mcmc_fix$h_trace[burn_in:length(rj_results$h_trace)]
+h_trace_rj_post_burnin <- rj_results$h_trace[burn_in:length(rj_results$h_trace)]
 
 # Compute posterior mean partial orders
 cat("Computing posterior mean partial orders...\n")
@@ -510,7 +403,7 @@ if (length(h_trace_rj_post_burnin) > 0) {
 
 ```
 
-## Visualize Estimated Partial Orders
+## (2) Visualize Estimated Partial Orders
 
 ```{r plot-estimates, fig.width=15, fig.height=5}
 par(mfrow = c(1, 3))
@@ -541,51 +434,8 @@ plot_partial_order(
   frame_width   = 2.3   # bolder outlines
 )
 
-par(mfrow = c(1, 1))
 ```
 
-# Conclusion
-
-This tutorial demonstrates the complete workflow for Bayesian partial
-order inference using the BayesianPO R package:
-
-## Key Findings
-
-1.  **Model Performance**: Both fixed and reversible jump MCMC
-    successfully recover the true partial order structure
-2.  **Dimension Selection**: RJ-MCMC automatically identifies the
-    optimal number of latent dimensions
-3.  **Parameter Estimation**: Posterior estimates closely match true
-    parameter values
-4.  **Computational Efficiency**: The implementation provides good
-    mixing and convergence
-
-## Advantages of Reversible Jump MCMC
-
--   **Automatic Model Selection**: No need to pre-specify the number of
-    dimensions
--   **Uncertainty Quantification**: Provides posterior distribution over
-    model complexity
--   **Robust Inference**: Less sensitive to initial parameter choices
--   **Principled Comparison**: Enables formal model comparison via
-    marginal likelihoods
-
-## Best Practices
-
-1.  **Tuning**: Adjust step sizes to achieve 20-50% acceptance rates
-2.  **Burn-in**: Use sufficient burn-in period (typically 10-20% of
-    total iterations)
-3.  **Convergence**: Monitor trace plots and acceptance rates
-4.  **Multiple Chains**: Run multiple chains to assess convergence
-
-## Extensions and Applications
-
-The methodology can be extended to:
-
--   **Hierarchical Models**: Multi-level partial order structures
--   **Time-Varying Orders**: Dynamic partial order evolution
--   **Missing Data**: Handling incomplete observations
--   **Large-Scale Problems**: Scalable algorithms for big data
 
 ## References
 
@@ -597,5 +447,4 @@ The methodology can be extended to:
 
 ------------------------------------------------------------------------
 
-*This tutorial was generated using the BayesianPO R package. For more
-information, see the package documentation and vignettes.*
+
