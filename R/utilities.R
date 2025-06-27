@@ -406,7 +406,9 @@ mx2list <- function(X){
     observed_orders[[i]]=paste0("Item_",X[i,which(X[i,]>0)])
   }
   choice_sets = observed_orders 
-  return(list(observed_orders = observed_orders, choice_sets = choice_sets))
+  items = paste0("Item_",c(1:max(X)))
+  return(list(observed_orders = observed_orders, 
+              choice_sets = choice_sets, items=items))
 }
 
 
