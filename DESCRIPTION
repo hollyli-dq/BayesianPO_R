@@ -2,19 +2,21 @@ Package: BayesianPO
 Type: Package
 Title: Bayesian Partial-Order Inference
 Version: 1.0.0
-Date: 2024-12-19
+Date: 2025-06-27
 Authors@R: c(person("Holly", "Li",
            role = "aut",
            comment = "Original Python implementation"),
-    person("Geoff", "Nicholls",
+           person("Geoff", "Nicholls",
            email = "nicholls@stats.ox.ac.uk",
            role = c("aut", "cre"),
            comment = "University of Oxford"))
+           person("Kate", "Lee",
+           email = "kate.lee@auckland.ac.nz",
+           role = c("aut", "cre"),
+           comment = "University of Auckland"))
 Description: Bayesian inference of strong partial orders from noisy observations
     using Markov Chain Monte Carlo(MCMC) methods. Implements the
-    non-hierarchical case of partial-order models with support for queue-jump
-    and Mallows noise models. Includes generic data loading, covariate effects,
-    and comprehensive visualization tools.
+    partial-order models with queue-jump noise. Includes generic data loading, MCMC simulation and comprehensive visualization tools.
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
