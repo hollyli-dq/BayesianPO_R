@@ -1,11 +1,5 @@
 # Bayesian Partial Order Inference - Data Generator
 # Comprehensive data generation function for partial order inference
-# Author: Converted for Prof Geoff Nicholls, University of Oxford
-
-# Required libraries
-library(yaml)
-library(jsonlite)
-library(mvtnorm)
 
 #' Load configuration from YAML file
 #' 
