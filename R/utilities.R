@@ -1,10 +1,3 @@
-# Bayesian Partial Order Inference - Utilities
-# Complete implementation matching Python functionality
-# Author: Converted for Prof Geoff Nicholls, University of Oxford
-
-# Required libraries
-library(mvtnorm)
-
 #' Bayesian Partial Order Inference Package
 #' 
 #' This package provides functions for Bayesian inference of strong partial orders
@@ -18,20 +11,13 @@ library(mvtnorm)
 #' 
 #' The model uses a latent space representation where each item j has a 
 #' K-dimensional latent position U_j ∈ R^K, with correlation controlled by ρ.
-#' 
-#' @docType package
-#' @name BayesianPO
+ 
 
 # ============================================================================
 # BASIC UTILITIES
 # ============================================================================
 
 #' Build correlation matrix with off-diagonal correlation rho
-#' 
-#' @param K Dimension of the matrix
-#' @param rho Correlation parameter
-#' @return K x K correlation matrix
-#' @export
 build_sigma_rho <- function(K, rho) {
   Sigma <- matrix(rho, nrow = K, ncol = K)
   diag(Sigma) <- 1.0
@@ -39,10 +25,6 @@ build_sigma_rho <- function(K, rho) {
 }
 
 #' Generate partial order matrix from latent positions
-#' 
-#' @param eta Transformed latent positions matrix (n x K)
-#' @return Binary partial order matrix (n x n)
-#' @export
 generate_partial_order <- function(eta) {
   n <- nrow(eta)
   h <- matrix(0, nrow = n, ncol = n)
@@ -59,10 +41,6 @@ generate_partial_order <- function(eta) {
 }
 
 #' Compute transitive closure of a binary matrix
-#' 
-#' @param h Binary matrix
-#' @return Transitive closure matrix
-#' @export
 transitive_closure <- function(h) {
   n <- nrow(h)
   tc <- h
@@ -81,10 +59,6 @@ transitive_closure <- function(h) {
 }
 
 #' Compute transitive reduction of a binary matrix
-#' 
-#' @param h Binary matrix
-#' @return Transitive reduction matrix
-#' @export
 transitive_reduction <- function(h) {
   n <- nrow(h)
   tr <- h
@@ -102,9 +76,6 @@ transitive_reduction <- function(h) {
 }
 
 #' Count number of linear extensions (exact algorithm)
-#' 
-#' @param h Partial order matrix (will be converted to transitive reduction)
-#' @return Exact number of linear extensions
 count_linear_extensions <- function(h) {
   # Convert to transitive reduction first
   tr <- transitive_reduction(h)
@@ -112,9 +83,6 @@ count_linear_extensions <- function(h) {
 }
 
 #' Count number of linear extensions of transitive reduction (exact algorithm)
-#' 
-#' @param tr Transitive reduction matrix
-#' @return Exact number of linear extensions
 nle <- function(tr) {
   # Base cases
   if (length(tr) == 0 || nrow(tr) <= 1) {
@@ -204,9 +172,6 @@ nle <- function(tr) {
 }
 
 #' Find top elements (nodes with no incoming edges)
-#' 
-#' @param tr Transitive reduction matrix
-#' @return Vector of indices of top elements
 find_tops <- function(tr) {
   incoming <- colSums(tr)
   tops <- which(incoming == 0)
@@ -214,10 +179,6 @@ find_tops <- function(tr) {
 }
 
 #' Count linear extensions starting with specific element
-#' 
-#' @param tr Transitive reduction matrix
-#' @param first_item_idx Index of first item
-#' @return Number of linear extensions starting with first_item_idx
 num_extensions_with_first <- function(tr, first_item_idx) {
   # Identify top elements of the current poset
   tops <- find_tops(tr)
@@ -238,55 +199,11 @@ num_extensions_with_first <- function(tr, first_item_idx) {
 }
 
 #' Restrict partial order to subset
-#' 
-#' @param h Partial order matrix
-#' @param subset Vector of indices to restrict to
-#' @return Restricted partial order matrix
 restrict_partial_order <- function(h, subset) {
   return(h[subset, subset, drop = FALSE])
 }
 
-# ============================================================================
-# STATISTICAL UTILITIES
-# ============================================================================
-
-#' Gumbel inverse CDF
-#' 
-#' @param p Probability value
-#' @param eps Small value to avoid log(0)
-#' @return Gumbel quantile
-gumbel_inv_cdf <- function(p, eps = 1e-15) {
-  p_clipped <- pmax(pmin(p, 1 - eps), eps)
-  return(-log(-log(p_clipped)))
-}
-
-#' Transform latent variables U to eta using Gumbel inverse CDF
-#' 
-#' @param U Latent variables matrix (n x K)
-#' @param alpha Covariate effects vector (n)
-#' @return Transformed eta matrix (n x K)
-#' @export
-transform_U_to_eta <- function(U, alpha) {
-  n <- nrow(U)
-  K <- ncol(U)
-  eta <- matrix(0, nrow = n, ncol = K)
-  
-  for (i in 1:n) {
-    p_vec <- pnorm(U[i, ])  # Convert to probabilities
-    # Gumbel inverse CDF: -log(-log(p))
-    gumbel_vec <- sapply(p_vec, gumbel_inv_cdf)
-    eta[i, ] <- gumbel_vec + alpha[i]
-  }
-  return(eta)
-}
-
 #' Log prior for latent variables U
-#' 
-#' @param Z Latent variables matrix
-#' @param rho Correlation parameter
-#' @param K Number of dimensions
-#' @return Log prior density
-#' @export
 log_U_prior <- function(Z, rho, K) {
   Sigma <- build_sigma_rho(K, rho)
   n <- nrow(Z)
@@ -299,11 +216,6 @@ log_U_prior <- function(Z, rho, K) {
 }
 
 #' Sample conditional column for reversible jump MCMC
-#' 
-#' @param Z Current latent matrix
-#' @param rho Correlation parameter
-#' @return Vector representing new column
-#' @export
 sample_conditional_column <- function(Z, rho) {
   n <- nrow(Z)
   K <- ncol(Z)
@@ -339,12 +251,6 @@ sample_conditional_column <- function(Z, rho) {
 }
 
 #' Sample conditional element for latent matrix update
-#' 
-#' @param Z Current latent matrix
-#' @param rZ Row index
-#' @param cZ Column index
-#' @param rho Correlation parameter
-#' @return New value for Z[rZ, cZ]
 sample_conditional_z <- function(Z, rZ, cZ, rho) {
   K <- ncol(Z)
   
@@ -402,12 +308,6 @@ sample_conditional_z <- function(Z, rZ, cZ, rho) {
 # ============================================================================
 
 #' Log prior for rho parameter (Beta distribution with truncation)
-#' 
-#' @param rho Current rho value
-#' @param fac Beta distribution parameter (default 1/6)
-#' @param tol Tolerance for upper bound
-#' @return Log prior density
-#' @export
 log_rho_prior <- function(rho, fac = 1/6, tol = 1e-4) {
   if (rho > 1 - tol) {
     return(-Inf)
@@ -418,11 +318,6 @@ log_rho_prior <- function(rho, fac = 1/6, tol = 1e-4) {
 }
 
 #' Sample from rho prior (Beta distribution with truncation)
-#' 
-#' @param fac Beta distribution parameter (default 1/6)
-#' @param tol Tolerance for upper bound
-#' @return Sample from rho prior
-#' @export
 sample_rho_prior <- function(fac = 1/6, tol = 1e-4) {
   repeat {
     rho <- rbeta(1, 1, fac)
@@ -433,11 +328,6 @@ sample_rho_prior <- function(fac = 1/6, tol = 1e-4) {
 }
 
 #' Log prior for noise probability (Beta distribution)
-#' 
-#' @param prob_noise Noise probability
-#' @param beta_param Beta distribution parameter
-#' @return Log prior density
-#' @export
 log_noise_prior <- function(prob_noise, beta_param) {
   if (prob_noise <= 0 || prob_noise >= 1) {
     return(-Inf)
@@ -446,20 +336,11 @@ log_noise_prior <- function(prob_noise, beta_param) {
 }
 
 #' Sample from noise probability prior
-#' 
-#' @param beta_param Beta distribution parameter
-#' @return Sample from noise prior
-#' @export
 sample_noise_prior <- function(beta_param) {
   return(rbeta(1, 1, beta_param))
 }
 
 #' Log prior for beta coefficients (multivariate normal)
-#' 
-#' @param beta Coefficient vector
-#' @param sigma_beta Prior standard deviation (scalar or vector)
-#' @return Log prior density
-#' @export
 log_beta_prior <- function(beta, sigma_beta) {
   p <- length(beta)
   
@@ -480,11 +361,6 @@ log_beta_prior <- function(beta, sigma_beta) {
 }
 
 #' Sample from beta prior
-#' 
-#' @param sigma_beta Prior standard deviation (scalar or vector)
-#' @param p Dimension of beta
-#' @return Sample from beta prior
-#' @export
 sample_beta_prior <- function(sigma_beta, p) {
   if (length(sigma_beta) == 1) {
     return(rnorm(p, 0, sigma_beta))
@@ -497,11 +373,6 @@ sample_beta_prior <- function(sigma_beta, p) {
 }
 
 #' Log prior for K (truncated Poisson)
-#' 
-#' @param K Number of dimensions
-#' @param K_prior Rate parameter for Poisson prior
-#' @return Log prior density
-#' @export
 log_K_prior <- function(K, K_prior) {
   if (K < 1) {
     return(-Inf)
@@ -515,10 +386,6 @@ log_K_prior <- function(K, K_prior) {
 }
 
 #' Sample from K prior (truncated Poisson)
-#' 
-#' @param K_prior Rate parameter for Poisson prior
-#' @return Sample from K prior
-#' @export
 sample_K_prior <- function(K_prior) {
   repeat {
     candidate <- rpois(1, K_prior)
@@ -528,23 +395,27 @@ sample_K_prior <- function(K_prior) {
   }
 }
 
+# ============================================================================
+# Convert matrix to data list
+# ============================================================================
+# nrow(X) is a number of lists
+# 0 indicates missing.
+mx2list <- function(X){
+  observed_orders=list()
+  for(i in 1:nrow(X)){
+    observed_orders[[i]]=paste0("Item_",X[i,which(X[i,]>0)])
+  }
+  choice_sets = observed_orders 
+  return(list(observed_orders = observed_orders, choice_sets = choice_sets))
+}
+
 
 # ============================================================================
 # DATA GENERATION FUNCTIONS
 # ============================================================================
 
 #' Generate synthetic data for testing
-#' 
-#' @param n_items Number of items
-#' @param n_observations Number of observations
-#' @param K Number of latent dimensions
-#' @param rho_true True correlation parameter
-#' @param prob_noise_true True noise probability
-#' @param X Design matrix (optional)
-#' @param random_seed Random seed
-#' @return List containing synthetic data
-#' @export
-generate_synthetic_data <- function(n_items = 6, n_observations = 50,     min_sub =2 ,K = 3, 
+generate_synthetic_data <- function(n_items = 6, n_observations = 50, min_sub =2 ,K = 3, 
                                    rho_true = 0.8, prob_noise_true = 0.1, 
                                    random_seed = 123) {
   set.seed(random_seed)
@@ -553,11 +424,8 @@ generate_synthetic_data <- function(n_items = 6, n_observations = 50,     min_su
   Sigma_true <- build_sigma_rho(K, rho_true)
   Z_true <- rmvnorm(n_items, mean = rep(0, K), sigma = Sigma_true)
   
-
-  alpha_true <-numeric(n)
-  
   # Transform to eta and generate true partial order
-  eta_true <- transform_U_to_eta(Z_true, alpha_true)
+  eta_true <- Z_true
   
   # First generate the full partial order
   h_full <- generate_partial_order(eta_true)
@@ -585,7 +453,6 @@ generate_synthetic_data <- function(n_items = 6, n_observations = 50,     min_su
   for (i in 1:n_observations) {
     choice_set <- subsets[[i]]
     choice_sets[[i]] <-choice_set
-
     
     if (noise_option == "queue_jump") {
       order <- generate_total_order_queue_jump(
@@ -596,14 +463,9 @@ generate_synthetic_data <- function(n_items = 6, n_observations = 50,     min_su
       
       )
     }
-    
     observed_orders[[i]] <- order   # one assignment is enough
   }                                # closes the *for* loop
-  
-
-
-  
-    
+ 
   return(list(
     observed_orders = observed_orders,
     choice_sets = choice_sets,
@@ -611,28 +473,11 @@ generate_synthetic_data <- function(n_items = 6, n_observations = 50,     min_su
     h_true = h_true,
     Z_true = Z_true,
     rho_true = rho_true,
-    prob_noise_true = prob_noise_true,
-    parameters = list(
-      rho_true = rho_true,
-      prob_noise_true = prob_noise_true
-    )
+    prob_noise_true = prob_noise_true
   ))
-}
-# ---------------------------------------------------------------------------
-# Utilities assumed to exist:
-#   transitive_reduction()
-#   nle()                         # total number of linear extensions
-#   num_extensions_with_first(tr, idx_first)
-# ---------------------------------------------------------------------------
+} 
 
 #' Queue-jump total-order generator (one choice-set)
-#'
-#' @param subset       Integer vector of *global* item IDs to order
-#' @param items_all    Full global item-ID vector 0:(n-1)
-#' @param h_global     Global partial-order adjacency matrix (0/1)
-#' @param prob_noise   Jump probability p  (0 ≤ p ≤ 1)
-#'
-#' @return             Vector of global IDs – one sampled linear extension
 generate_total_order_queue_jump <- function(subset,
                                             items_all,
                                             h_global,
@@ -640,11 +485,11 @@ generate_total_order_queue_jump <- function(subset,
   subset <- sort(unique(subset))
   if (length(subset) == 0) return(integer(0))
   
-  ## 1.  Extract the sub-matrix for this subset -----------------------------
+  ## 1.  Extract the sub-matrix for this subset 
   idx_map <- match(subset, items_all)                # global → row/col index
   h_sub   <- h_global[idx_map, idx_map, drop = FALSE]
   
-  ## 2.  Work with LOCAL indices 1..m ---------------------------------------
+  ## 2.  Work with LOCAL indices 
   remaining   <- seq_along(subset)                   # local indices
   order_local <- integer(0)
   
@@ -683,21 +528,6 @@ generate_total_order_queue_jump <- function(subset,
     remaining   <- remaining[-chosen_pos]
   }
   
-  ## 3.  Convert local indices back to *global* IDs -------------------------
+  ## 3.  Convert local indices back to *global* 
   subset[order_local]
 }
-
-
-# ============================================================================
-# COMPATIBILITY FUNCTIONS (for backward compatibility)
-# ============================================================================
-
-# Legacy function names for backward compatibility
-dKprior <- log_K_prior
-rKprior <- sample_K_prior
-dBetaprior <- log_beta_prior
-rBetaprior <- sample_beta_prior
-dRprior <- log_rho_prior
-rRprior <- sample_rho_prior
-dPprior <- log_noise_prior
-rPprior <- sample_noise_prior
