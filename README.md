@@ -98,3 +98,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 For questions or issues, please open a GitHub issue or contact the maintainers.
 
 ## 
+
+The tutorial material in Python can be found here;
+https://github.com/hollyli-dq/po_mcmc_py
