@@ -61,6 +61,8 @@ and the likelihood is $exp(-l(h,p; \{Y_i\}^N_{i=1} ))=\prod^N_{i=1} p(Y_i|h, p) 
 \[ \pi(\rho|U) \propto \pi(U|\rho)\pi(\rho)\, ,\] \[\pi(p|h,\{Y_i\}^N_{i=1}) \propto \exp(-l(h,p;\{Y_i\}^N_{i=1})) \pi(p) \,,\]
 \[ \pi(h(U)|p,\{Y_i\}^N_{i=1}) \propto \exp(-l(h,p;\{Y_i\}^N_{i=1}))\pi(U|\rho) \,. \]
 
+where $\rho\sim Beta(1,rho_prior)$, $p\sim Beta(1,noise_beta_prior)$. 
+
 ### RJ-MCMC simulation when $K$ is variable
 
 The reversible jump MCMC extends the standard algorithm by allowing the dimension $K$ to vary. The key moves are:
