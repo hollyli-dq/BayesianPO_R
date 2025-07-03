@@ -37,9 +37,11 @@ library(igraph)
 ## (1) Data Generation
 
 ```{r}
+set.seed(1234)
+# I'm mimicking linear extensions to create the data
 X0 = rbind(c(1,2,3,4,5),c(1,3,2,4,5),c(1,2,4,3,5),c(1,2,4,3,5))
-X = X0[sample(4,20,replace='T'),]
-X[sample(20,5),4:5]=0
+X = X0[sample(nrow(X0),30,replace='T'),]
+X[sample(20,5),3:4]=0
 
 dada <- mx2list(X)
 observed_orders = dada$observed_orders
@@ -91,7 +93,7 @@ complexity.
 rj_cfg <- list(
   iters            = 20000, 
   dr               = 0.10,                      # rho step
-  K_prior          = 3.0,                       # Poisson(λ) prior for K
+  K_prior          = length(unique(unlist(choice_sets))),                       # prior for K
   noise_option     = "queue_jump",              
   noise_beta_prior = 9,                         # used **only** for queue-jump
   rho_prior        = 1/6
