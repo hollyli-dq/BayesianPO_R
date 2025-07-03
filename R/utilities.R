@@ -373,26 +373,8 @@ sample_beta_prior <- function(sigma_beta, p) {
 }
 
 #' Log prior for K (truncated Poisson)
-log_K_prior <- function(K, K_prior) {
-  if (K < 1) {
-    return(-Inf)
-  }
-  # log(k!) using lgamma(k+1)
-  log_k_fact <- lgamma(K + 1)
-  # normalizing constant for truncation
-  norm_const <- -log(1 - exp(-K_prior))
-  val <- -K_prior + K * log(K_prior) - log_k_fact + norm_const
-  return(val)
-}
-
-#' Sample from K prior (truncated Poisson)
-sample_K_prior <- function(K_prior) {
-  repeat {
-    candidate <- rpois(1, K_prior)
-    if (candidate >= 1) {
-      return(candidate)
-    }
-  }
+log_K_prior <- function(K, K_prior){
+  return(log(as.numeric((K<=K_prior)*(K>0))/K_prior))
 }
 
 # ============================================================================
